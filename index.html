@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CYBER TETRIS 3D : OVERDRIVE</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #050510;
+      font-family: 'Inter', sans-serif;
+      color: #ffffff;
+    }
+    .font-cyber {
+      font-family: 'Orbitron', 'Inter', sans-serif;
+    }
+    .neon-panel {
+      background: rgba(10, 14, 34, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 240, 255, 0.28);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.12), inset 0 0 15px rgba(0, 240, 255, 0.06);
+    }
+    .neon-panel-pink {
+      background: rgba(24, 10, 34, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 0, 160, 0.35);
+      box-shadow: 0 0 22px rgba(255, 0, 160, 0.15), inset 0 0 15px rgba(255, 0, 160, 0.08);
+    }
+    .neon-text-cyan {
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.8), 0 0 18px rgba(0, 240, 255, 0.4);
+    }
+    .neon-text-pink {
+      text-shadow: 0 0 8px rgba(255, 0, 160, 0.85), 0 0 20px rgba(255, 0, 160, 0.5);
+    }
+    .neon-text-gold {
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.9), 0 0 24px rgba(255, 140, 0, 0.6);
+    }
+    .cyber-btn {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.18), rgba(112, 0, 255, 0.24));
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+      transition: all 0.15s ease;
+    }
+    .cyber-btn:hover {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.35), rgba(255, 0, 160, 0.35));
+      border-color: rgba(0, 255, 255, 0.85);
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.45);
+      transform: translateY(-1px);
+    }
+    .cyber-btn:active {
+      transform: translateY(1px) scale(0.97);
+    }
+    .touch-btn {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+      backdrop-filter: blur(8px);
+      transition: transform 0.08s ease, background 0.12s ease;
+      touch-action: manipulation;
+    }
+    .touch-btn:active {
+      transform: scale(0.92);
+      background: rgba(56, 189, 248, 0.35);
+      border-color: #38bdf8;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 0, 200, 0.8)); transform: scale(1); }
+      50% { filter: drop-shadow(0 0 22px rgba(0, 255, 255, 1)); transform: scale(1.05); }
+    }
+    .fever-active-glow {
+      animation: pulseGlow 0.6s infinite ease-in-out;
+    }
+    @keyframes floatCallout {
+      0% { opacity: 0; transform: translate(-50%, 10px) scale(0.6); }
+      20% { opacity: 1; transform: translate(-50%, -8px) scale(1.12); }
+      80% { opacity: 1; transform: translate(-50%, -22px) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -40px) scale(0.85); }
+    }
+    .callout-anim {
+      animation: floatCallout 1.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    #flashOverlay {
+      pointer-events: none;
+      transition: opacity 0.25s ease-out;
+    }
+  </style>
+</head>
+<body class="relative w-full h-full select-none overflow-hidden">
+
+  <!-- Three.js 3D Viewport -->
+  <div id="canvasContainer" class="absolute inset-0 w-full h-full z-0"></div>
+
+  <!-- Screen Flash Overlay for Big Combos / Tetris / Fever -->
+  <div id="flashOverlay" class="absolute inset-0 z-10 opacity-0 bg-cyan-400 mix-blend-screen"></div>
+
+  <!-- Floating Dynamic Action Callouts (TETRIS!! COMBO x5! FEVER!) -->
+  <div id="calloutContainer" class="absolute inset-0 pointer-events-none z-20 overflow-hidden"></div>
+
+  <!-- Main HUD Overlay -->
+  <div class="relative z-20 flex flex-col justify-between w-full h-full p-2 sm:p-4 pointer-events-none">
+
+    <!-- Top Navigation / Status Bar -->
+    <header id="topHudBar" class="flex items-center justify-between gap-2 w-full max-w-6xl mx-auto pointer-events-auto">
+      <div class="flex items-center gap-2 sm:gap-3 neon-panel px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl">
+        <div class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></div>
+        <div>
+          <h1 class="font-cyber text-xs sm:text-base md:text-lg font-black tracking-wider text-cyan-300 neon-text-cyan">
+            CYBER TETRIS <span class="text-pink-400">3D</span>
+          </h1>
+          <p id="cameraModeLabel" class="text-[10px] text-slate-300 hidden sm:block">ドラッグで視点回転 / レーザーガイド搭載</p>
+        </div>
+      </div>
+
+      <!--Fever Gauge in Header Center -->
+      <div class="flex-1 max-w-xs sm:max-w-sm neon-panel-pink px-3 py-1.5 rounded-xl flex flex-col gap-1">
+        <div class="flex justify-between items-center text-[10px] sm:text-xs font-cyber">
+          <span id="feverStatusText" class="text-pink-300 font-bold tracking-wider">OVERDRIVE GAUGE</span>
+          <span id="feverPercentText" class="text-cyan-300 font-bold">0%</span>
+        </div>
+        <div class="w-full h-2.5 bg-slate-900/90 rounded-full overflow-hidden border border-pink-500/40 p-0.5">
+          <div id="feverBar" class="h-full w-0 rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-amber-400 transition-all duration-200"></div>
+        </div>
+      </div>
+
+      <!-- Top Control Buttons -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <button id="btnCamera" type="button" class="cyber-btn px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="カメラ視点切替 (V)">
+          <span>🎥</span>
+          <span id="btnCameraText" class="hidden md:inline">DYNAMIC</span>
+        </button>
+        <button id="btnAudio" type="button" class="cyber-btn px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="サウンド切替 (M)">
+          <span id="audioIcon">🔊</span>
+          <span id="audioText" class="hidden md:inline">SOUND ON</span>
+        </button>
+        <button id="btnPause" type="button" class="cyber-btn px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="一時停止 (P)">
+          <span id="pauseIcon">⏸️</span>
+          <span class="hidden md:inline">PAUSE</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Middle HUD: Left (Hold & Stats) + Center (3D Playfield Clear Space) + Right (Next & Fever Trigger) -->
+    <div class="flex-1 flex items-center justify-between w-full max-w-6xl mx-auto my-1 pointer-events-none">
+
+      <!-- Left Column: HOLD & Scoreboard -->
+      <div class="flex flex-col gap-2 sm:gap-3 w-24 sm:w-36 md:w-44 pointer-events-auto">
+        <!-- HOLD Piece -->
+        <div class="neon-panel rounded-2xl p-2 sm:p-3 flex flex-col items-center">
+          <div class="flex items-center justify-between w-full mb-1">
+            <span class="font-cyber text-[10px] sm:text-xs text-cyan-300 font-bold tracking-widest">HOLD</span>
+            <span class="text-[9px] text-slate-400 px-1.5 py-0.5 rounded bg-slate-800/80">C / SHIFT</span>
+          </div>
+          <canvas id="holdCanvas" width="96" height="72" class="w-20 h-14 sm:w-24 sm:h-16"></canvas>
+        </div>
+
+        <!-- Score & Stats -->
+        <div class="neon-panel rounded-2xl p-2.5 sm:p-3.5 flex flex-col gap-2">
+          <div>
+            <div class="text-[10px] font-cyber text-slate-400 tracking-wider">SCORE</div>
+            <div id="scoreVal" class="font-cyber text-sm sm:text-xl md:text-2xl font-black text-cyan-300 neon-text-cyan tabular-nums">0</div>
+          </div>
+          <div class="border-t border-cyan-500/20 pt-1.5">
+            <div class="text-[10px] font-cyber text-slate-400 tracking-wider">BEST</div>
+            <div id="bestVal" class="font-cyber text-xs sm:text-base font-bold text-amber-300 tabular-nums">0</div>
+          </div>
+          <div class="grid grid-cols-2 gap-1 border-t border-cyan-500/20 pt-1.5">
+            <div>
+              <div class="text-[9px] font-cyber text-slate-400">LEVEL</div>
+              <div id="levelVal" class="font-cyber text-xs sm:text-base font-extrabold text-pink-400">1</div>
+            </div>
+            <div>
+              <div class="text-[9px] font-cyber text-slate-400">LINES</div>
+              <div id="linesVal" class="font-cyber text-xs sm:text-base font-extrabold text-emerald-300">0</div>
+            </div>
+          </div>
+          <div id="comboBadge" class="hidden mt-1 rounded-lg bg-gradient-to-r from-pink-600/80 to-amber-500/80 px-2 py-1 text-center">
+            <span id="comboText" class="font-cyber text-xs sm:text-sm font-black text-white">2 REN!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Area: Transparent so 3D board shines -->
+      <div class="flex-1 h-full"></div>
+
+      <!-- Right Column: NEXT Queue & Overdrive Trigger -->
+      <div class="flex flex-col gap-2 sm:gap-3 w-24 sm:w-36 md:w-44 pointer-events-auto">
+        <!-- NEXT 3 Pieces -->
+        <div class="neon-panel rounded-2xl p-2 sm:p-3 flex flex-col items-center">
+          <div class="w-full flex items-center justify-between mb-1">
+            <span class="font-cyber text-[10px] sm:text-xs text-cyan-300 font-bold tracking-widest">NEXT</span>
+            <span class="text-[9px] text-cyan-400">3 QUEUE</span>
+          </div>
+          <canvas id="nextCanvas" width="96" height="190" class="w-20 h-36 sm:w-24 sm:h-44"></canvas>
+        </div>
+
+        <!-- Manual OVERDRIVE / Fireworks Trigger -->
+        <button id="btnFeverTrigger" type="button" class="neon-panel-pink rounded-2xl p-2.5 sm:p-3 text-center transition-all hover:scale-105 active:scale-95 cursor-pointer">
+          <div class="font-cyber text-[10px] sm:text-xs font-black text-pink-300 neon-text-pink">⚡ HYPER BURST</div>
+          <div id="feverBtnSub" class="text-[10px] text-slate-300 mt-0.5">Fキー / タップで衝撃波</div>
+        </button>
+
+        <!-- Controls Hint (Desktop) -->
+        <div class="neon-panel rounded-2xl p-2.5 hidden lg:flex flex-col gap-1 text-[11px] text-slate-300">
+          <div class="font-cyber text-[10px] text-cyan-300 font-bold mb-0.5">CONTROLS</div>
+          <div class="flex justify-between"><span>移動</span><span class="text-cyan-200 font-mono">← → / A D</span></div>
+          <div class="flex justify-between"><span>回転</span><span class="text-cyan-200 font-mono">↑ / Z / X</span></div>
+          <div class="flex justify-between"><span>ソフト落下</span><span class="text-cyan-200 font-mono">↓ / S</span></div>
+          <div class="flex justify-between"><span>ハード落下</span><span class="text-cyan-200 font-mono">SPACE</span></div>
+          <div class="flex justify-between"><span>ホールド</span><span class="text-cyan-200 font-mono">C / SHIFT</span></div>
+          <div class="flex justify-between"><span>視点ドラッグ</span><span class="text-cyan-200 font-mono">マウス操作</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Touch / Arcade Controller Bar -->
+    <footer id="bottomHudBar" class="w-full max-w-xl mx-auto pointer-events-auto pb-0.5">
+      <div class="grid grid-cols-6 gap-1.5 sm:gap-2">
+        <button id="touchLeft" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-cyan-200 font-bold">
+          <span class="text-sm sm:text-base leading-none">◀</span>
+          <span class="text-[9px] font-cyber mt-0.5 text-slate-300">LEFT</span>
+        </button>
+        <button id="touchRight" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-cyan-200 font-bold">
+          <span class="text-sm sm:text-base leading-none">▶</span>
+          <span class="text-[9px] font-cyber mt-0.5 text-slate-300">RIGHT</span>
+        </button>
+        <button id="touchSoft" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-cyan-200 font-bold">
+          <span class="text-sm sm:text-base leading-none">▼</span>
+          <span class="text-[9px] font-cyber mt-0.5 text-slate-300">DOWN</span>
+        </button>
+        <button id="touchRotR" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-pink-300 font-bold border-pink-400/50">
+          <span class="text-sm sm:text-base leading-none">↻</span>
+          <span class="text-[9px] font-cyber mt-0.5 text-pink-200">ROTATE</span>
+        </button>
+        <button id="touchDrop" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-amber-300 font-bold border-amber-400/60 bg-amber-500/20">
+          <span class="text-sm sm:text-base leading-none">⚡</span>
+          <span class="text-[9px] font-cyber mt-0.5 text-amber-200">DROP</span>
+        </button>
+        <button id="touchHold" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-emerald-300 font-bold border-emerald-400/50">
+          <span class="text-sm sm:text-base leading-none">⇄</span>
+          <span class="text-[9px] font-cyber mt-0.5 text-emerald-200">HOLD</span>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Start / Pause / Game Over Modal Overlay -->
+  <div id="modalOverlay" class="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+    <div class="neon-panel-pink max-w-md w-full rounded-3xl p-6 sm:p-8 text-center flex flex-col items-center gap-4 border border-cyan-400/50 shadow-2xl">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-cyber">
+        <span>✨ ULTRA NEON 3D EDITION</span>
+      </div>
+      <h2 id="modalTitle" class="font-cyber text-2xl sm:text-4xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-amber-300">
+        CYBER TETRIS 3D
+      </h2>
+      <p id="modalSubtitle" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+        ド派手な3Dパーティクル爆破・レーザーハードドロップ・シンセBGM・FEVERモード搭載！ラインを揃えて空間を揺らせ！
+      </p>
+
+      <!-- Final Score Display (Shown on Game Over) -->
+      <div id="modalScoreBox" class="hidden w-full neon-panel rounded-2xl p-4 my-1">
+        <div class="text-xs font-cyber text-slate-400">FINAL SCORE</div>
+        <div id="modalFinalScore" class="font-cyber text-3xl font-black text-cyan-300 neon-text-cyan mt-1">0</div>
+      </div>
+
+      <div class="w-full grid grid-cols-3 gap-2 text-left text-[11px] bg-slate-900/70 p-3 rounded-2xl border border-slate-700/60">
+        <div class="flex flex-col items-center text-center p-1">
+          <span class="text-lg">💥</span>
+          <span class="font-bold text-cyan-300 mt-1">3Dブロック爆砕</span>
+          <span class="text-[10px] text-slate-400">ライン消去で破片と衝撃波が炸裂</span>
+        </div>
+        <div class="flex flex-col items-center text-center p-1">
+          <span class="text-lg">🌈</span>
+          <span class="font-bold text-pink-300 mt-1">FEVERモード</span>
+          <span class="text-[10px] text-slate-400">連続消去でスコア2倍＆虹色空間</span>
+        </div>
+        <div class="flex flex-col items-center text-center p-1">
+          <span class="text-lg">🎹</span>
+          <span class="font-bold text-amber-300 mt-1">シンセ音源</span>
+          <span class="text-[10px] text-slate-400">コンボ連動ビート＆効果音</span>
+        </div>
+      </div>
+
+      <button id="btnStartGame" type="button" class="w-full py-3.5 px-6 rounded-2xl font-cyber font-black text-base sm:text-lg tracking-wider text-slate-950 bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-amber-300 hover:brightness-110 active:scale-98 transition-all shadow-[0_0_30px_rgba(0,240,255,0.6)] cursor-pointer">
+        START OVERDRIVE
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. SYNTHESIZED CYBER AUDIO ENGINE (Web Audio API - Zero external files)
+    // =========================================================================
+    class CyberAudio {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        this.bgmTimer = null;
+        this.bgmStep = 0;
+        this.isPlayingBgm = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggle() {
+        this.init();
+        this.enabled = !this.enabled;
+        if (!this.enabled) {
+          this.stopBGM();
+        } else if (gameState.running && !gameState.paused) {
+          this.startBGM();
+        }
+        return this.enabled;
+      }
+
+      playTone(freq, type, duration, vol = 0.15, slideFreq = null) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now);
+          if (slideFreq) {
+            osc.frequency.exponentialRampToValueAtTime(slideFreq, now + duration);
+          }
+          gain.gain.setValueAtTime(vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + duration);
+        } catch (e) {}
+      }
+
+      playNoise(duration = 0.18, vol = 0.2) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const bufferSize = this.ctx.sampleRate * duration;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.4));
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(900, now);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (e) {}
+      }
+
+      sfxMove() {
+        this.playTone(320, 'triangle', 0.05, 0.08, 440);
+      }
+
+      sfxRotate() {
+        this.playTone(480, 'sine', 0.09, 0.12, 880);
+      }
+
+      sfxSoftDrop() {
+        this.playTone(220, 'sine', 0.04, 0.06, 180);
+      }
+
+      sfxHold() {
+        this.playTone(392, 'square', 0.08, 0.08, 587.33);
+      }
+
+      sfxHardDrop() {
+        this.playTone(180, 'sawtooth', 0.22, 0.22, 42);
+        this.playNoise(0.14, 0.18);
+      }
+
+      sfxLineClear(lines, combo, fever) {
+        const baseNotes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+        const comboBoost = Math.min(combo * 45, 400);
+        const count = Math.min(lines + 1, 5);
+        for (let i = 0; i < count; i++) {
+          setTimeout(() => {
+            const f = baseNotes[i] + comboBoost + (fever ? 150 : 0);
+            this.playTone(f, lines === 4 ? 'sawtooth' : 'triangle', 0.28, 0.16, f * 1.15);
+          }, i * 55);
+        }
+        if (lines >= 4) {
+          this.playNoise(0.38, 0.26);
+          this.playTone(110, 'sawtooth', 0.45, 0.25, 35);
+        } else {
+          this.playNoise(0.18, 0.14);
+        }
+      }
+
+      sfxFeverStart() {
+        const chord = [440, 554.37, 659.25, 880, 1108.73, 1318.5];
+        chord.forEach((f, idx) => {
+          setTimeout(() => this.playTone(f, 'sawtooth', 0.35, 0.14, f * 1.25), idx * 45);
+        });
+      }
+
+      sfxGameOver() {
+        const notes = [440, 392, 349.23, 293.66, 220];
+        notes.forEach((f, idx) => {
+          setTimeout(() => this.playTone(f, 'sawtooth', 0.3, 0.15, f * 0.85), idx * 110);
+        });
+      }
+
+      startBGM() {
+        if (this.bgmTimer) clearInterval(this.bgmTimer);
+        if (!this.enabled) return;
+        this.init();
+        this.isPlayingBgm = true;
+        const bassScale = [110, 110, 130.81, 146.83, 110, 110, 164.81, 146.83];
+        const arpScale = [440, 523.25, 659.25, 783.99, 880, 783.99, 659.25, 523.25];
+
+        this.bgmTimer = setInterval(() => {
+          if (!this.enabled || !gameState.running || gameState.paused) return;
+          const step = this.bgmStep % 8;
+          const feverMult = gameState.feverActive ? 1.25 : 1.0;
+          const bassFreq = bassScale[step] * feverMult;
+          const arpFreq = arpScale[(this.bgmStep * 3) % 8] * feverMult;
+
+          // Sub bass pulse
+          this.playTone(bassFreq, 'sawtooth', 0.13, 0.045, bassFreq * 0.9);
+          // High cyber synth arpeggio
+          if (this.bgmStep % 2 === 0 || gameState.feverActive) {
+            this.playTone(arpFreq, 'triangle', 0.09, 0.035);
+          }
+          this.bgmStep++;
+        }, 165);
+      }
+
+      stopBGM() {
+        this.isPlayingBgm = false;
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+    }
+
+    const audio = new CyberAudio();
+
+    // =========================================================================
+    // 2. TETROMINO DEFINITIONS & NEON PALETTE
+    // =========================================================================
+    const COLS = 10;
+    const ROWS = 20;
+
+    const TETROMINOES = {
+      I: {
+        id: 1,
+        name: 'I',
+        color: 0x00f5ff,
+        hex: '#00f5ff',
+        emissive: 0x0099ff,
+        matrix: [
+          [0, 0, 0, 0],
+          [1, 1, 1, 1],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0]
+        ]
+      },
+      J: {
+        id: 2,
+        name: 'J',
+        color: 0x3b82f6,
+        hex: '#3b82f6',
+        emissive: 0x1d4ed8,
+        matrix: [
+          [1, 0, 0],
+          [1, 1, 1],
+          [0, 0, 0]
+        ]
+      },
+      L: {
+        id: 3,
+        name: 'L',
+        color: 0xff8c00,
+        hex: '#ff8c00',
+        emissive: 0xd9460f,
+        matrix: [
+          [0, 0, 1],
+          [1, 1, 1],
+          [0, 0, 0]
+        ]
+      },
+      O: {
+        id: 4,
+        name: 'O',
+        color: 0xffea00,
+        hex: '#ffea00',
+        emissive: 0xca8a04,
+        matrix: [
+          [1, 1],
+          [1, 1]
+        ]
+      },
+      S: {
+        id: 5,
+        name: 'S',
+        color: 0x00ff66,
+        hex: '#00ff66',
+        emissive: 0x059669,
+        matrix: [
+          [0, 1, 1],
+          [1, 1, 0],
+          [0, 0, 0]
+        ]
+      },
+      T: {
+        id: 6,
+        name: 'T',
+        color: 0xd946ef,
+        hex: '#d946ef',
+        emissive: 0x9333ea,
+        matrix: [
+          [0, 1, 0],
+          [1, 1, 1],
+          [0, 0, 0]
+        ]
+      },
+      Z: {
+        id: 7,
+        name: 'Z',
+        color: 0xff0055,
+        hex: '#ff0055',
+        emissive: 0xbe123c,
+        matrix: [
+          [1, 1, 0],
+          [0, 1, 1],
+          [0, 0, 0]
+        ]
+      }
+    };
+
+    const COLOR_BY_ID = {};
+    Object.values(TETROMINOES).forEach(t => {
+      COLOR_BY_ID[t.id] = t;
+    });
+
+    // =========================================================================
+    // 3. GAME STATE & STORAGE
+    // =========================================================================
+    function loadHighScore() {
+      try {
+        return parseInt(localStorage.getItem('cyber_tetris_3d_best') || '0', 10) || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function saveHighScore(val) {
+      try {
+        localStorage.setItem('cyber_tetris_3d_best', String(val));
+      } catch (e) {}
+    }
+
+    const gameState = {
+      board: Array.from({ length: ROWS }, () => Array(COLS).fill(0)),
+      bag: [],
+      nextQueue: [],
+      active: null,
+      holdPiece: null,
+      canHold: true,
+      score: 0,
+      bestScore: loadHighScore(),
+      lines: 0,
+      level: 1,
+      combo: -1,
+      feverGauge: 0,      // 0 to 100
+      feverActive: false,
+      feverTimer: 0,
+      running: false,
+      paused: false,
+      dropAccumulator: 0,
+      cameraPreset: 0,    // 0: Dynamic, 1: Angled 3D, 2: Front Pro
+      userYaw: 0,
+      userPitch: 0
+    };
+
+    document.getElementById('bestVal').textContent = gameState.bestScore.toLocaleString();
+
+    // =========================================================================
+    // 4. THREE.JS 3D SCENE, LIGHTING & FX ENGINE
+    // =========================================================================
+    const container = document.getElementById('canvasContainer');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050514, 0.016);
+
+    const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 200);
+    const baseCamPos = new THREE.Vector3(0, 0, 31.0);
+    camera.position.copy(baseCamPos);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Board root group (centered around (0,0,0), shifted dynamically via worldGroup.position.y on resize)
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    // Coordinate conversion helper: board (col 0..9, row 0..19 from top) -> 3D space
+    function gridToWorld(col, row) {
+      return {
+        x: col - COLS / 2 + 0.5,
+        y: (ROWS / 2 - 0.5) - row,
+        z: 0
+      };
+    }
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404878, 1.35);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
+    dirLight.position.set(12, 22, 18);
+    scene.add(dirLight);
+
+    const activePieceLight = new THREE.PointLight(0x00f5ff, 2.6, 16);
+    activePieceLight.position.set(0, 4, 3);
+    worldGroup.add(activePieceLight);
+
+    const rimLightLeft = new THREE.PointLight(0xff00a0, 2.2, 28);
+    rimLightLeft.position.set(-9, 0, 4);
+    worldGroup.add(rimLightLeft);
+
+    const rimLightRight = new THREE.PointLight(0x00f5ff, 2.2, 28);
+    rimLightRight.position.set(9, 0, 4);
+    worldGroup.add(rimLightRight);
+
+    // 3D Stage Frame & Back Grid
+    const frameGroup = new THREE.Group();
+    worldGroup.add(frameGroup);
+
+    function buildCyberStage() {
+      // Back translucent cyber wall
+      const backGeo = new THREE.PlaneGeometry(COLS, ROWS);
+      const backMat = new THREE.MeshStandardMaterial({
+        color: 0x080d24,
+        roughness: 0.3,
+        metalness: 0.7,
+        transparent: true,
+        opacity: 0.82
+      });
+      const backMesh = new THREE.Mesh(backGeo, backMat);
+      backMesh.position.set(0, 0, -0.55);
+      frameGroup.add(backMesh);
+
+      // Grid lines inside board
+      const gridMat = new THREE.LineBasicMaterial({ color: 0x1e3a8a, transparent: true, opacity: 0.5 });
+      const gridPoints = [];
+      for (let c = 0; c <= COLS; c++) {
+        const x = c - COLS / 2;
+        gridPoints.push(new THREE.Vector3(x, -ROWS / 2, -0.52));
+        gridPoints.push(new THREE.Vector3(x, ROWS / 2, -0.52));
+      }
+      for (let r = 0; r <= ROWS; r++) {
+        const y = r - ROWS / 2;
+        gridPoints.push(new THREE.Vector3(-COLS / 2, y, -0.52));
+        gridPoints.push(new THREE.Vector3(COLS / 2, y, -0.52));
+      }
+      const gridGeo = new THREE.BufferGeometry().setFromPoints(gridPoints);
+      const gridLines = new THREE.LineSegments(gridGeo, gridMat);
+      frameGroup.add(gridLines);
+
+      // Glowing Outer Neon Pillars
+      const pillarGeo = new THREE.BoxGeometry(0.32, ROWS + 0.6, 1.25);
+      const pillarMatL = new THREE.MeshStandardMaterial({
+        color: 0x00f5ff,
+        emissive: 0x00a8ff,
+        emissiveIntensity: 0.9,
+        roughness: 0.2,
+        metalness: 0.8
+      });
+      const pillarMatR = pillarMatL.clone();
+
+      const leftPillar = new THREE.Mesh(pillarGeo, pillarMatL);
+      leftPillar.position.set(-COLS / 2 - 0.2, 0, 0);
+      frameGroup.add(leftPillar);
+
+      const rightPillar = new THREE.Mesh(pillarGeo, pillarMatR);
+      rightPillar.position.set(COLS / 2 + 0.2, 0, 0);
+      frameGroup.add(rightPillar);
+
+      const bottomGeo = new THREE.BoxGeometry(COLS + 0.72, 0.35, 1.35);
+      const bottomMesh = new THREE.Mesh(bottomGeo, pillarMatL);
+      bottomMesh.position.set(0, -ROWS / 2 - 0.2, 0);
+      frameGroup.add(bottomMesh);
+    }
+    buildCyberStage();
+
+    // Background Floating Cyber Tunnel Rings & Starfield
+    const tunnelRings = [];
+    const ringGeo = new THREE.TorusGeometry(19, 0.08, 8, 64);
+    for (let i = 0; i < 8; i++) {
+      const rMat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? 0x00f5ff : 0xff00a0,
+        transparent: true,
+        opacity: 0.22
+      });
+      const ring = new THREE.Mesh(ringGeo, rMat);
+      ring.position.z = -4 - i * 6;
+      ring.rotation.z = i * 0.4;
+      scene.add(ring);
+      tunnelRings.push(ring);
+    }
+
+    // Starfield Particles
+    const starCount = 450;
+    const starGeo = new THREE.BufferGeometry();
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      starPositions[i * 3] = (Math.random() - 0.5) * 90;
+      starPositions[i * 3 + 1] = (Math.random() - 0.5) * 70;
+      starPositions[i * 3 + 2] = -Math.random() * 65 - 2;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0x7dd3fc, size: 0.25, transparent: true, opacity: 0.8 });
+    const starField = new THREE.Points(starGeo, starMat);
+    scene.add(starField);
+
+    // Block Mesh Pool for Board, Active Piece, Ghost Piece & Laser Guides
+    const blockGeo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
+    const innerCoreGeo = new THREE.BoxGeometry(0.58, 0.58, 0.98);
+    const edgeGeo = new THREE.EdgesGeometry(blockGeo);
+
+    const boardMeshGroup = new THREE.Group();
+    const activeMeshGroup = new THREE.Group();
+    const ghostMeshGroup = new THREE.Group();
+    const fxGroup = new THREE.Group();
+    worldGroup.add(boardMeshGroup);
+    worldGroup.add(activeMeshGroup);
+    worldGroup.add(ghostMeshGroup);
+    worldGroup.add(fxGroup);
+
+    function createNeonCube(typeObj, isGhost = false) {
+      const group = new THREE.Group();
+      if (isGhost) {
+        const ghostMat = new THREE.MeshBasicMaterial({
+          color: typeObj.color,
+          transparent: true,
+          opacity: 0.18
+        });
+        const wireMat = new THREE.LineBasicMaterial({
+          color: typeObj.color,
+          transparent: true,
+          opacity: 0.75
+        });
+        group.add(new THREE.Mesh(blockGeo, ghostMat));
+        group.add(new THREE.LineSegments(edgeGeo, wireMat));
+      } else {
+        const outerMat = new THREE.MeshStandardMaterial({
+          color: typeObj.color,
+          emissive: typeObj.emissive,
+          emissiveIntensity: gameState.feverActive ? 1.15 : 0.65,
+          roughness: 0.18,
+          metalness: 0.65
+        });
+        const coreMat = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.45
+        });
+        const wireMat = new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.55
+        });
+        group.add(new THREE.Mesh(blockGeo, outerMat));
+        group.add(new THREE.Mesh(innerCoreGeo, coreMat));
+        group.add(new THREE.LineSegments(edgeGeo, wireMat));
+      }
+      return group;
+    }
+
+    // =========================================================================
+    // 5. EXPLOSIVE 3D FX (Shards, Shockwaves, Hard-Drop Lasers, Camera Shake)
+    // =========================================================================
+    const particles = [];
+    const shockwaves = [];
+    const laserBeams = [];
+    let screenShake = 0;
+
+    function addScreenShake(amount) {
+      screenShake = Math.min(screenShake + amount, 1.4);
+    }
+
+    function triggerScreenFlash(hexColor = '#00f5ff') {
+      const overlay = document.getElementById('flashOverlay');
+      overlay.style.backgroundColor = hexColor;
+      overlay.style.opacity = '0.42';
+      setTimeout(() => {
+        overlay.style.opacity = '0';
+      }, 90);
+    }
+
+    function spawnFloatingCallout(title, subtitle = '', colorClass = 'text-cyan-300 neon-text-cyan') {
+      const containerEl = document.getElementById('calloutContainer');
+      const el = document.createElement('div');
+      el.className = `callout-anim absolute left-1/2 top-1/3 -translate-x-1/2 text-center pointer-events-none`;
+      el.innerHTML = `
+        <div class="font-cyber text-2xl sm:text-4xl md:text-5xl font-black tracking-wider ${colorClass}">${title}</div>
+        ${subtitle ? `<div class="font-cyber text-xs sm:text-base font-bold text-white mt-1 bg-slate-900/70 px-3 py-0.5 rounded-full inline-block border border-white/30">${subtitle}</div>` : ''}
+      `;
+      containerEl.appendChild(el);
+      setTimeout(() => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 1300);
+    }
+
+    const shardGeo = new THREE.BoxGeometry(0.32, 0.32, 0.32);
+
+    function spawnBlockExplosion(col, row, colorHex, intensity = 1) {
+      const pos = gridToWorld(col, row);
+      const count = Math.floor(7 * intensity);
+      for (let i = 0; i < count; i++) {
+        const mat = new THREE.MeshBasicMaterial({
+          color: colorHex,
+          transparent: true,
+          opacity: 1
+        });
+        const mesh = new THREE.Mesh(shardGeo, mat);
+        mesh.position.set(
+          pos.x + (Math.random() - 0.5) * 0.5,
+          pos.y + (Math.random() - 0.5) * 0.5,
+          pos.z + (Math.random() - 0.5) * 0.5
+        );
+        const vel = new THREE.Vector3(
+          (Math.random() - 0.5) * 14 * intensity,
+          (Math.random() - 0.2) * 12 * intensity,
+          (Math.random() * 10 + 3) * intensity
+        );
+        const rotVel = new THREE.Vector3(
+          (Math.random() - 0.5) * 12,
+          (Math.random() - 0.5) * 12,
+          (Math.random() - 0.5) * 12
+        );
+        fxGroup.add(mesh);
+        particles.push({ mesh, vel, rotVel, life: 1.0, decay: 0.9 + Math.random() * 0.6 });
+      }
+    }
+
+    function spawnShockwave(x, y, colorHex = 0x00f5ff, maxScale = 10) {
+      const geo = new THREE.RingGeometry(0.4, 0.75, 36);
+      const mat = new THREE.MeshBasicMaterial({
+        color: colorHex,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, 0.6);
+      fxGroup.add(mesh);
+      shockwaves.push({ mesh, scaleSpeed: maxScale * 2.4, life: 1.0 });
+    }
+
+    function spawnHardDropLaser(col, startRow, endRow, colorHex) {
+      const height = Math.max(1, endRow - startRow);
+      const startPos = gridToWorld(col, startRow);
+      const endPos = gridToWorld(col, endRow);
+      const midY = (startPos.y + endPos.y) / 2;
+
+      const geo = new THREE.PlaneGeometry(0.75, height);
+      const mat = new THREE.MeshBasicMaterial({
+        color: colorHex,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.75
+      });
+      const beam = new THREE.Mesh(geo, mat);
+      beam.position.set(startPos.x, midY, 0.2);
+      fxGroup.add(beam);
+      laserBeams.push({ mesh: beam, life: 1.0 });
+    }
+
+    // =========================================================================
+    // 6. TETRIS CORE LOGIC (7-Bag, Rotation with Wall Kicks, Line Clears)
+    // =========================================================================
+    function refillBag() {
+      const keys = Object.keys(TETROMINOES);
+      for (let i = keys.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [keys[i], keys[j]] = [keys[j], keys[i]];
+      }
+      gameState.bag.push(...keys);
+    }
+
+    function pullNextType() {
+      if (gameState.bag.length < 7) refillBag();
+      const key = gameState.bag.shift();
+      return TETROMINOES[key];
+    }
+
+    function initQueues() {
+      gameState.bag = [];
+      gameState.nextQueue = [];
+      refillBag();
+      for (let i = 0; i < 3; i++) {
+        gameState.nextQueue.push(pullNextType());
+      }
+    }
+
+    function cloneMatrix(m) {
+      return m.map(row => [...row]);
+    }
+
+    function spawnNextPiece() {
+      const type = gameState.nextQueue.shift();
+      gameState.nextQueue.push(pullNextType());
+
+      const mat = cloneMatrix(type.matrix);
+      const col = Math.floor((COLS - mat[0].length) / 2);
+      const row = 0;
+
+      gameState.active = {
+        type,
+        matrix: mat,
+        col,
+        row
+      };
+      gameState.canHold = true;
+
+      if (checkCollision(gameState.active.col, gameState.active.row, gameState.active.matrix)) {
+        triggerGameOver();
+      }
+      render2DPreviews();
+      rebuildActive3D();
+    }
+
+    function checkCollision(testCol, testRow, matrix) {
+      for (let r = 0; r < matrix.length; r++) {
+        for (let c = 0; c < matrix[r].length; c++) {
+          if (!matrix[r][c]) continue;
+          const boardCol = testCol + c;
+          const boardRow = testRow + r;
+          if (boardCol < 0 || boardCol >= COLS || boardRow >= ROWS) {
+            return true;
+          }
+          if (boardRow >= 0 && gameState.board[boardRow][boardCol] !== 0) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function getGhostRow() {
+      if (!gameState.active) return 0;
+      let gRow = gameState.active.row;
+      while (!checkCollision(gameState.active.col, gRow + 1, gameState.active.matrix)) {
+        gRow++;
+      }
+      return gRow;
+    }
+
+    function moveHorizontal(dir) {
+      if (!gameState.running || gameState.paused || !gameState.active) return false;
+      if (!checkCollision(gameState.active.col + dir, gameState.active.row, gameState.active.matrix)) {
+        gameState.active.col += dir;
+        audio.sfxMove();
+        rebuildActive3D();
+        return true;
+      }
+      return false;
+    }
+
+    function rotateActive(dir = 1) {
+      if (!gameState.running || gameState.paused || !gameState.active) return;
+      const mat = gameState.active.matrix;
+      const N = mat.length;
+      const rotated = Array.from({ length: N }, () => Array(N).fill(0));
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          if (dir === 1) {
+            rotated[c][N - 1 - r] = mat[r][c];
+          } else {
+            rotated[N - 1 - c][r] = mat[r][c];
+          }
+        }
+      }
+
+      // Wall kick offsets
+      const kicks = [
+        [0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [-1, -1], [1, -1]
+      ];
+      for (const [dx, dy] of kicks) {
+        if (!checkCollision(gameState.active.col + dx, gameState.active.row + dy, rotated)) {
+          gameState.active.col += dx;
+          gameState.active.row += dy;
+          gameState.active.matrix = rotated;
+          audio.sfxRotate();
+          rebuildActive3D();
+          return;
+        }
+      }
+    }
+
+    function softDrop() {
+      if (!gameState.running || gameState.paused || !gameState.active) return;
+      if (!checkCollision(gameState.active.col, gameState.active.row + 1, gameState.active.matrix)) {
+        gameState.active.row++;
+        gameState.score += gameState.feverActive ? 2 : 1;
+        audio.sfxSoftDrop();
+        updateHUD();
+        rebuildActive3D();
+      } else {
+        lockPiece();
+      }
+    }
+
+    function hardDrop() {
+      if (!gameState.running || gameState.paused || !gameState.active) return;
+      const startRow = gameState.active.row;
+      const ghostRow = getGhostRow();
+      const dropDist = Math.max(0, ghostRow - startRow);
+
+      // Spawn laser trail for each column in active piece
+      const mat = gameState.active.matrix;
+      for (let r = 0; r < mat.length; r++) {
+        for (let c = 0; c < mat[r].length; c++) {
+          if (mat[r][c]) {
+            spawnHardDropLaser(
+              gameState.active.col + c,
+              startRow + r,
+              ghostRow + r,
+              gameState.active.type.color
+            );
+          }
+        }
+      }
+
+      gameState.active.row = ghostRow;
+      gameState.score += dropDist * (gameState.feverActive ? 4 : 2);
+      audio.sfxHardDrop();
+      addScreenShake(0.38);
+      lockPiece();
+    }
+
+    function holdCurrentPiece() {
+      if (!gameState.running || gameState.paused || !gameState.active || !gameState.canHold) return;
+      audio.sfxHold();
+      const currentType = gameState.active.type;
+      if (!gameState.holdPiece) {
+        gameState.holdPiece = currentType;
+        spawnNextPiece();
+      } else {
+        const swapType = gameState.holdPiece;
+        gameState.holdPiece = currentType;
+        const mat = cloneMatrix(swapType.matrix);
+        gameState.active = {
+          type: swapType,
+          matrix: mat,
+          col: Math.floor((COLS - mat[0].length) / 2),
+          row: 0
+        };
+        rebuildActive3D();
+      }
+      gameState.canHold = false;
+      render2DPreviews();
+    }
+
+    function lockPiece() {
+      if (!gameState.active) return;
+      const { matrix, col, row, type } = gameState.active;
+
+      let lockCenterCol = col + 1;
+      let lockCenterRow = row + 1;
+
+      for (let r = 0; r < matrix.length; r++) {
+        for (let c = 0; c < matrix[r].length; c++) {
+          if (matrix[r][c]) {
+            const bRow = row + r;
+            const bCol = col + c;
+            if (bRow >= 0 && bRow < ROWS && bCol >= 0 && bCol < COLS) {
+              gameState.board[bRow][bCol] = type.id;
+              lockCenterCol = bCol;
+              lockCenterRow = bRow;
+              spawnBlockExplosion(bCol, bRow, type.color, 0.35);
+            }
+          }
+        }
+      }
+
+      const lockWorld = gridToWorld(lockCenterCol, lockCenterRow);
+      spawnShockwave(lockWorld.x, lockWorld.y, type.color, 3.5);
+
+      checkAndClearLines();
+      rebuildBoard3D();
+      spawnNextPiece();
+      updateHUD();
+    }
+
+    function checkAndClearLines() {
+      const fullRows = [];
+      for (let r = 0; r < ROWS; r++) {
+        if (gameState.board[r].every(cell => cell !== 0)) {
+          fullRows.push(r);
+        }
+      }
+
+      if (fullRows.length === 0) {
+        gameState.combo = -1;
+        updateHUD();
+        return;
+      }
+
+      // Explode cleared rows with intense 3D particles & horizontal laser beams
+      fullRows.forEach(r => {
+        const rowWorld = gridToWorld(4.5, r);
+        spawnShockwave(0, rowWorld.y, 0xffffff, 14);
+        for (let c = 0; c < COLS; c++) {
+          const cellId = gameState.board[r][c];
+          const tObj = COLOR_BY_ID[cellId] || TETROMINOES.I;
+          const burstColor = gameState.feverActive ? 0xff00ff : tObj.color;
+          spawnBlockExplosion(c, r, burstColor, 1.3 + fullRows.length * 0.25);
+        }
+      });
+
+      // Remove cleared rows and unshift empty rows at top
+      const newBoard = gameState.board.filter((_, idx) => !fullRows.includes(idx));
+      while (newBoard.length < ROWS) {
+        newBoard.unshift(Array(COLS).fill(0));
+      }
+      gameState.board = newBoard;
+
+      // Check Perfect Clear
+      const isPerfectClear = gameState.board.every(row => row.every(cell => cell === 0));
+
+      // Update Combo, Lines, Level, Score, and Fever Gauge
+      gameState.combo++;
+      const count = fullRows.length;
+      gameState.lines += count;
+      gameState.level = Math.floor(gameState.lines / 10) + 1;
+
+      const baseLineScores = [0, 100, 300, 500, 800];
+      const mult = gameState.feverActive ? 2 : 1;
+      let earned = (baseLineScores[count] || 1000) * gameState.level * mult;
+      if (gameState.combo > 0) {
+        earned += 50 * gameState.combo * gameState.level * mult;
+      }
+      if (isPerfectClear) {
+        earned += 2000 * gameState.level;
+      }
+      gameState.score += earned;
+
+      // Charge Fever Gauge
+      if (!gameState.feverActive) {
+        gameState.feverGauge = Math.min(100, gameState.feverGauge + count * 22 + Math.max(0, gameState.combo * 8));
+        if (gameState.feverGauge >= 100) {
+          activateFeverMode();
+        }
+      }
+
+      // Audio + Visual Callouts
+      audio.sfxLineClear(count, Math.max(0, gameState.combo), gameState.feverActive);
+      addScreenShake(0.35 + count * 0.22);
+
+      const labels = {
+        1: { text: 'SINGLE!', color: 'text-cyan-300 neon-text-cyan', flash: '#00f5ff' },
+        2: { text: 'DOUBLE!!', color: 'text-emerald-300 neon-text-cyan', flash: '#00ff88' },
+        3: { text: 'TRIPLE!!!', color: 'text-pink-400 neon-text-pink', flash: '#ff00a0' },
+        4: { text: 'HYPER TETRIS!!!!', color: 'text-amber-300 neon-text-gold', flash: '#ffea00' }
+      };
+      const info = labels[count] || labels[4];
+      triggerScreenFlash(info.flash);
+
+      let sub = `+${earned.toLocaleString()} PTS`;
+      if (gameState.combo > 0) sub += ` • ${gameState.combo} REN COMBO!`;
+      if (isPerfectClear) {
+        spawnFloatingCallout('PERFECT CLEAR!!', `+${earned.toLocaleString()} PTS`, 'text-amber-300 neon-text-gold');
+      } else {
+        spawnFloatingCallout(info.text, sub, info.color);
+      }
+    }
+
+    function activateFeverMode() {
+      gameState.feverActive = true;
+      gameState.feverGauge = 100;
+      gameState.feverTimer = 12.0; // 12 seconds of Overdrive
+      audio.sfxFeverStart();
+      addScreenShake(0.95);
+      triggerScreenFlash('#ff00a0');
+      spawnShockwave(0, 0, 0xff00ff, 22);
+      spawnShockwave(0, 0, 0x00f5ff, 16);
+      spawnFloatingCallout('OVERDRIVE FEVER!!', 'SCORE x2 • HYPER NEON MODE', 'text-pink-400 neon-text-pink');
+      rebuildBoard3D();
+    }
+
+    function triggerManualBurst() {
+      if (!gameState.running || gameState.paused) return;
+      if (gameState.feverGauge >= 50 && !gameState.feverActive) {
+        activateFeverMode();
+      } else {
+        // Fireworks shockwave burst at any time for maximum hype!
+        audio.sfxFeverStart();
+        addScreenShake(0.65);
+        triggerScreenFlash('#00f5ff');
+        spawnShockwave(0, 0, 0x00f5ff, 18);
+        spawnShockwave(0, 0, 0xff00a0, 14);
+        for (let i = 0; i < 6; i++) {
+          const randCol = Math.floor(Math.random() * COLS);
+          const randRow = Math.floor(Math.random() * ROWS);
+          const colors = [0x00f5ff, 0xff00a0, 0xffea00, 0x00ff66];
+          spawnBlockExplosion(randCol, randRow, colors[i % colors.length], 0.9);
+        }
+        spawnFloatingCallout('CYBER BURST!!', 'HYPER VISUAL OVERLOAD', 'text-cyan-300 neon-text-cyan');
+      }
+    }
+
+    // =========================================================================
+    // 7. 3D MESH SYNCHRONIZATION & 2D MINI-CANVAS PREVIEWS
+    // =========================================================================
+    function clearThreeGroup(group) {
+      while (group.children.length > 0) {
+        group.remove(group.children[0]);
+      }
+    }
+
+    function rebuildBoard3D() {
+      clearThreeGroup(boardMeshGroup);
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const id = gameState.board[r][c];
+          if (id !== 0) {
+            const typeObj = COLOR_BY_ID[id];
+            const cube = createNeonCube(typeObj, false);
+            const pos = gridToWorld(c, r);
+            cube.position.set(pos.x, pos.y, pos.z);
+            boardMeshGroup.add(cube);
+          }
+        }
+      }
+    }
+
+    function rebuildActive3D() {
+      clearThreeGroup(activeMeshGroup);
+      clearThreeGroup(ghostMeshGroup);
+      if (!gameState.active) return;
+
+      const { matrix, col, row, type } = gameState.active;
+      const ghostRow = getGhostRow();
+
+      let sumX = 0;
+      let sumY = 0;
+      let count = 0;
+
+      for (let r = 0; r < matrix.length; r++) {
+        for (let c = 0; c < matrix[r].length; c++) {
+          if (!matrix[r][c]) continue;
+
+          // Active Piece Block
+          const actCube = createNeonCube(type, false);
+          const actPos = gridToWorld(col + c, row + r);
+          actCube.position.set(actPos.x, actPos.y, actPos.z);
+          activeMeshGroup.add(actCube);
+
+          sumX += actPos.x;
+          sumY += actPos.y;
+          count++;
+
+          // Ghost Piece Block
+          const ghostCube = createNeonCube(type, true);
+          const ghostPos = gridToWorld(col + c, ghostRow + r);
+          ghostCube.position.set(ghostPos.x, ghostPos.y, ghostPos.z);
+          ghostMeshGroup.add(ghostCube);
+        }
+      }
+
+      if (count > 0) {
+        activePieceLight.color.setHex(type.color);
+        activePieceLight.position.set(sumX / count, sumY / count, 2.8);
+      }
+    }
+
+    function drawMiniPiece(ctx, typeObj, offsetX, offsetY, cellSize = 16) {
+      if (!typeObj) return;
+      const mat = typeObj.matrix;
+      const rows = mat.length;
+      const cols = mat[0].length;
+      const startX = offsetX + (80 - cols * cellSize) / 2;
+      const startY = offsetY + (52 - rows * cellSize) / 2;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (!mat[r][c]) continue;
+          const x = startX + c * cellSize;
+          const y = startY + r * cellSize;
+          ctx.fillStyle = typeObj.hex;
+          ctx.shadowColor = typeObj.hex;
+          ctx.shadowBlur = 8;
+          ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+        }
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    function render2DPreviews() {
+      const holdCanvas = document.getElementById('holdCanvas');
+      const hCtx = holdCanvas.getContext('2d');
+      hCtx.clearRect(0, 0, holdCanvas.width, holdCanvas.height);
+      if (gameState.holdPiece) {
+        drawMiniPiece(hCtx, gameState.holdPiece, 8, 10, 16);
+      }
+
+      const nextCanvas = document.getElementById('nextCanvas');
+      const nCtx = nextCanvas.getContext('2d');
+      nCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+      gameState.nextQueue.slice(0, 3).forEach((piece, idx) => {
+        drawMiniPiece(nCtx, piece, 8, idx * 60 + 6, 15);
+      });
+    }
+
+    function updateHUD() {
+      if (gameState.score > gameState.bestScore) {
+        gameState.bestScore = gameState.score;
+        saveHighScore(gameState.bestScore);
+      }
+      document.getElementById('scoreVal').textContent = gameState.score.toLocaleString();
+      document.getElementById('bestVal').textContent = gameState.bestScore.toLocaleString();
+      document.getElementById('levelVal').textContent = gameState.level;
+      document.getElementById('linesVal').textContent = gameState.lines;
+
+      const comboBadge = document.getElementById('comboBadge');
+      const comboText = document.getElementById('comboText');
+      if (gameState.combo >= 1) {
+        comboBadge.classList.remove('hidden');
+        comboText.textContent = `${gameState.combo} REN COMBO!`;
+      } else {
+        comboBadge.classList.add('hidden');
+      }
+
+      const pct = Math.round(gameState.feverGauge);
+      document.getElementById('feverBar').style.width = `${pct}%`;
+      document.getElementById('feverPercentText').textContent = gameState.feverActive ? 'OVERDRIVE!!' : `${pct}%`;
+      const statusText = document.getElementById('feverStatusText');
+      const triggerBtn = document.getElementById('btnFeverTrigger');
+      if (gameState.feverActive) {
+        statusText.textContent = '🌈 FEVER x2 ACTIVE!';
+        triggerBtn.classList.add('fever-active-glow');
+      } else {
+        statusText.textContent = 'OVERDRIVE GAUGE';
+        triggerBtn.classList.remove('fever-active-glow');
+      }
+    }
+
+    // =========================================================================
+    // 8. GAME FLOW (Start, Pause, Game Over, Main Animation Loop)
+    // =========================================================================
+    function startGame() {
+      audio.init();
+      gameState.board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+      gameState.score = 0;
+      gameState.lines = 0;
+      gameState.level = 1;
+      gameState.combo = -1;
+      gameState.feverGauge = 0;
+      gameState.feverActive = false;
+      gameState.feverTimer = 0;
+      gameState.holdPiece = null;
+      gameState.canHold = true;
+      gameState.running = true;
+      gameState.paused = false;
+      gameState.dropAccumulator = 0;
+
+      document.getElementById('modalOverlay').classList.add('hidden');
+      document.getElementById('modalScoreBox').classList.add('hidden');
+
+      handleResize();
+      initQueues();
+      rebuildBoard3D();
+      spawnNextPiece();
+      updateHUD();
+      audio.startBGM();
+      spawnFloatingCallout('SYSTEM READY!', 'GO FOR TETRIS OVERDRIVE', 'text-cyan-300 neon-text-cyan');
+    }
+
+    function togglePause() {
+      if (!gameState.running) return;
+      gameState.paused = !gameState.paused;
+      const modal = document.getElementById('modalOverlay');
+      const title = document.getElementById('modalTitle');
+      const sub = document.getElementById('modalSubtitle');
+      const btn = document.getElementById('btnStartGame');
+
+      if (gameState.paused) {
+        title.textContent = 'PAUSED';
+        sub.textContent = '一息ついたら再開しよう！マウスドラッグで3Dステージを自由に眺められます。';
+        btn.textContent = 'RESUME GAME';
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function triggerGameOver() {
+      gameState.running = false;
+      gameState.paused = false;
+      audio.stopBGM();
+      audio.sfxGameOver();
+      addScreenShake(0.9);
+      triggerScreenFlash('#ff0055');
+
+      const modal = document.getElementById('modalOverlay');
+      document.getElementById('modalTitle').textContent = 'GAME OVER';
+      document.getElementById('modalSubtitle').textContent = 'さらなるハイスコアと連続TETRISを目指して再挑戦しよう！';
+      document.getElementById('modalScoreBox').classList.remove('hidden');
+      document.getElementById('modalFinalScore').textContent = gameState.score.toLocaleString();
+      document.getElementById('btnStartGame').textContent = 'PLAY AGAIN';
+      modal.classList.remove('hidden');
+    }
+
+    // Main Three.js + Game Loop
+    let lastTime = performance.now();
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
+      // 1. Update Gravity & Fever Timer
+      if (gameState.running && !gameState.paused) {
+        const dropInterval = Math.max(0.1, 0.85 - (gameState.level - 1) * 0.065);
+        gameState.dropAccumulator += dt;
+        if (gameState.dropAccumulator >= dropInterval) {
+          gameState.dropAccumulator = 0;
+          if (!checkCollision(gameState.active.col, gameState.active.row + 1, gameState.active.matrix)) {
+            gameState.active.row++;
+            rebuildActive3D();
+          } else {
+            lockPiece();
+          }
+        }
+
+        if (gameState.feverActive) {
+          gameState.feverTimer -= dt;
+          gameState.feverGauge = Math.max(0, (gameState.feverTimer / 12.0) * 100);
+          if (gameState.feverTimer <= 0) {
+            gameState.feverActive = false;
+            gameState.feverGauge = 0;
+            rebuildBoard3D();
+          }
+          updateHUD();
+        }
+      }
+
+      // 2. Update 3D Background Tunnel Rings & Starfield
+      const tunnelSpeed = gameState.feverActive ? 22 : 7;
+      tunnelRings.forEach((ring, idx) => {
+        ring.position.z += tunnelSpeed * dt;
+        ring.rotation.z += (idx % 2 === 0 ? 0.5 : -0.5) * dt * (gameState.feverActive ? 2.5 : 1);
+        if (gameState.feverActive) {
+          const hue = ((now * 0.0006) + idx * 0.12) % 1;
+          ring.material.color.setHSL(hue, 1.0, 0.55);
+        }
+        if (ring.position.z > 8) {
+          ring.position.z -= 48;
+        }
+      });
+
+      starField.rotation.z += dt * (gameState.feverActive ? 0.25 : 0.04);
+
+      // 3. Update Exploding Shards
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= p.decay * dt;
+        if (p.life <= 0) {
+          fxGroup.remove(p.mesh);
+          particles.splice(i, 1);
+          continue;
+        }
+        p.vel.y -= 24 * dt; // Gravity
+        p.mesh.position.addScaledVector(p.vel, dt);
+        p.mesh.rotation.x += p.rotVel.x * dt;
+        p.mesh.rotation.y += p.rotVel.y * dt;
+        p.mesh.rotation.z += p.rotVel.z * dt;
+        p.mesh.scale.setScalar(Math.max(0.01, p.life));
+        p.mesh.material.opacity = p.life;
+      }
+
+      // 4. Update Shockwave Rings
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.life -= 1.85 * dt;
+        if (sw.life <= 0) {
+          fxGroup.remove(sw.mesh);
+          shockwaves.splice(i, 1);
+          continue;
+        }
+        const s = 1 + (1 - sw.life) * sw.scaleSpeed;
+        sw.mesh.scale.set(s, s, 1);
+        sw.mesh.material.opacity = sw.life;
+      }
+
+      // 5. Update Hard Drop Laser Beams
+      for (let i = laserBeams.length - 1; i >= 0; i--) {
+        const lb = laserBeams[i];
+        lb.life -= 4.2 * dt;
+        if (lb.life <= 0) {
+          fxGroup.remove(lb.mesh);
+          laserBeams.splice(i, 1);
+          continue;
+        }
+        lb.mesh.scale.x = lb.life;
+        lb.mesh.material.opacity = lb.life * 0.8;
+      }
+
+      // 6. Camera Motion & Screen Shake
+      let targetRotY = gameState.userYaw;
+      let targetRotX = gameState.userPitch;
+
+      if (gameState.cameraPreset === 0) {
+        // Dynamic Action Camera: gently follows active piece X and sways
+        const activeOffsetX = gameState.active ? ((gameState.active.col - 4.5) * 0.032) : 0;
+        targetRotY += Math.sin(now * 0.0008) * 0.14 + activeOffsetX;
+        targetRotX += Math.cos(now * 0.0006) * 0.05;
+      } else if (gameState.cameraPreset === 1) {
+        // Isometric 3D Showcase Angle
+        targetRotY += 0.36;
+        targetRotX += 0.12;
+      }
+
+      worldGroup.rotation.y += (targetRotY - worldGroup.rotation.y) * 0.1;
+      worldGroup.rotation.x += (targetRotX - worldGroup.rotation.x) * 0.1;
+
+      if (screenShake > 0.001) {
+        camera.position.x = baseCamPos.x + (Math.random() - 0.5) * screenShake;
+        camera.position.y = baseCamPos.y + (Math.random() - 0.5) * screenShake;
+        screenShake *= Math.pow(0.015, dt);
+      } else {
+        camera.position.x = baseCamPos.x;
+        camera.position.y = baseCamPos.y;
+        screenShake = 0;
+      }
+      camera.lookAt(0, 0, 0);
+
+      renderer.render(scene, camera);
+    }
+
+    // =========================================================================
+    // 9. INPUT LISTENERS (Keyboard, Mouse Orbit, Touch Controls, Window Resize)
+    // =========================================================================
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+        e.preventDefault();
+      }
+      if (!gameState.running) {
+        if (e.code === 'Space' || e.code === 'Enter') startGame();
+        return;
+      }
+      if (e.code === 'KeyP' || e.code === 'Escape') {
+        togglePause();
+        return;
+      }
+      if (gameState.paused) return;
+
+      switch (e.code) {
+        case 'ArrowLeft':
+        case 'KeyA':
+          moveHorizontal(-1);
+          break;
+        case 'ArrowRight':
+        case 'KeyD':
+          moveHorizontal(1);
+          break;
+        case 'ArrowDown':
+        case 'KeyS':
+          softDrop();
+          break;
+        case 'ArrowUp':
+        case 'KeyX':
+        case 'KeyW':
+          rotateActive(1);
+          break;
+        case 'KeyZ':
+          rotateActive(-1);
+          break;
+        case 'Space':
+          hardDrop();
+          break;
+        case 'KeyC':
+        case 'ShiftLeft':
+        case 'ShiftRight':
+          holdCurrentPiece();
+          break;
+        case 'KeyF':
+          triggerManualBurst();
+          break;
+        case 'KeyV':
+          cycleCameraPreset();
+          break;
+        case 'KeyM':
+          toggleAudioButton();
+          break;
+      }
+    });
+
+    // Mouse / Pointer Drag to Rotate 3D Board
+    let isDragging = false;
+    let prevPointer = { x: 0, y: 0 };
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      prevPointer = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const dx = (e.clientX - prevPointer.x) * 0.005;
+      const dy = (e.clientY - prevPointer.y) * 0.005;
+      gameState.userYaw = Math.max(-0.65, Math.min(0.65, gameState.userYaw + dx));
+      gameState.userPitch = Math.max(-0.4, Math.min(0.4, gameState.userPitch + dy));
+      prevPointer = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointerup', () => {
+      isDragging = false;
+    });
+
+    function cycleCameraPreset() {
+      gameState.cameraPreset = (gameState.cameraPreset + 1) % 3;
+      gameState.userYaw = 0;
+      gameState.userPitch = 0;
+      const names = ['DYNAMIC', 'ISO 3D', 'FRONT PRO'];
+      document.getElementById('btnCameraText').textContent = names[gameState.cameraPreset];
+    }
+
+    function toggleAudioButton() {
+      const isOn = audio.toggle();
+      document.getElementById('audioIcon').textContent = isOn ? '🔊' : '🔇';
+      document.getElementById('audioText').textContent = isOn ? 'SOUND ON' : 'MUTED';
+    }
+
+    // Button Bindings
+    document.getElementById('btnStartGame').addEventListener('click', () => {
+      if (gameState.running && gameState.paused) {
+        togglePause();
+      } else {
+        startGame();
+      }
+    });
+
+    document.getElementById('btnPause').addEventListener('click', () => {
+      if (gameState.running) togglePause();
+    });
+
+    document.getElementById('btnAudio').addEventListener('click', toggleAudioButton);
+    document.getElementById('btnCamera').addEventListener('click', cycleCameraPreset);
+    document.getElementById('btnFeverTrigger').addEventListener('click', triggerManualBurst);
+
+    // Touch / Arcade Buttons
+    document.getElementById('touchLeft').addEventListener('click', () => moveHorizontal(-1));
+    document.getElementById('touchRight').addEventListener('click', () => moveHorizontal(1));
+    document.getElementById('touchSoft').addEventListener('click', () => softDrop());
+    document.getElementById('touchRotR').addEventListener('click', () => rotateActive(1));
+    document.getElementById('touchDrop').addEventListener('click', () => hardDrop());
+    document.getElementById('touchHold').addEventListener('click', () => holdCurrentPiece());
+
+    // Responsive Resize: compute exact HUD header & footer heights in JS so the 3D board never overlaps them
+    function handleResize() {
+      const w = window.innerWidth;
+      const h = Math.max(window.innerHeight, 320);
+      camera.aspect = w / h;
+
+      const headerEl = document.getElementById('topHudBar');
+      const footerEl = document.getElementById('bottomHudBar');
+      const topOccupied = headerEl ? headerEl.getBoundingClientRect().bottom + 16 : 72;
+      const footerRect = footerEl ? footerEl.getBoundingClientRect() : null;
+      const bottomOccupied = footerRect ? (h - footerRect.top) + 20 : 96;
+
+      // Safe vertical pixel ratio available for the 3D stage (total height ~23.2 world units including frame & 3D perspective tilt)
+      const safeHeightPx = Math.max(180, h - topOccupied - bottomOccupied);
+      const safeFraction = safeHeightPx / h;
+      const boardWorldHeight = 23.2;
+      const halfFovRad = THREE.MathUtils.degToRad(camera.fov * 0.5);
+
+      // Required camera Z so boardWorldHeight fits inside safeFraction of viewport height
+      const requiredZForHeight = (boardWorldHeight * 0.5) / (Math.tan(halfFovRad) * safeFraction);
+
+      // Also ensure enough width on mobile screens so side panels don't crowd the board
+      let minZForWidth = 29.8;
+      if (w < 500) {
+        minZForWidth = 35.5;
+      } else if (w < 768) {
+        minZForWidth = 32.0;
+      }
+
+      baseCamPos.z = Math.max(requiredZForHeight, minZForWidth);
+      baseCamPos.y = 0;
+      camera.position.z = baseCamPos.z;
+
+      // Shift worldGroup vertically to the exact center between topOccupied and bottomOccupied
+      const visibleWorldHeight = 2 * baseCamPos.z * Math.tan(halfFovRad);
+      const pixelOffsetY = (bottomOccupied - topOccupied) * 0.5;
+      worldGroup.position.y = (pixelOffsetY / h) * visibleWorldHeight;
+
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+
+    window.addEventListener('resize', handleResize);
+
+    window.onload = () => {
+      handleResize();
+      // Re-run once layout fonts settle to ensure exact bounding boxes
+      setTimeout(handleResize, 120);
+      initQueues();
+      render2DPreviews();
+      requestAnimationFrame(animate);
+    };
+  </script>
+</body>
+</html>

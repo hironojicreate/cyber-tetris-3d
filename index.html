@@ -2,7 +2,10 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CYBER TETRIS 3D" />
   <title>CYBER TETRIS 3D : OVERDRIVE</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -12,6 +15,7 @@
       box-sizing: border-box;
       user-select: none;
       -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
     html, body {
       margin: 0;
@@ -22,19 +26,21 @@
       background-color: #050510;
       font-family: 'Inter', sans-serif;
       color: #ffffff;
+      touch-action: none;
+      overscroll-behavior: none;
     }
     .font-cyber {
       font-family: 'Orbitron', 'Inter', sans-serif;
     }
     .neon-panel {
-      background: rgba(10, 14, 34, 0.72);
+      background: rgba(10, 14, 34, 0.76);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(0, 240, 255, 0.28);
       box-shadow: 0 0 20px rgba(0, 240, 255, 0.12), inset 0 0 15px rgba(0, 240, 255, 0.06);
     }
     .neon-panel-pink {
-      background: rgba(24, 10, 34, 0.75);
+      background: rgba(24, 10, 34, 0.78);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 0, 160, 0.35);
@@ -59,27 +65,61 @@
       background: linear-gradient(135deg, rgba(0, 240, 255, 0.35), rgba(255, 0, 160, 0.35));
       border-color: rgba(0, 255, 255, 0.85);
       box-shadow: 0 0 18px rgba(0, 240, 255, 0.45);
-      transform: translateY(-1px);
     }
     .cyber-btn:active {
-      transform: translateY(1px) scale(0.97);
+      transform: scale(0.95);
     }
     .touch-btn {
-      background: rgba(15, 23, 42, 0.78);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+      position: absolute;
+      background: rgba(15, 23, 42, 0.84);
+      border: 1.5px solid rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.18), inset 0 0 10px rgba(56, 189, 248, 0.08);
       backdrop-filter: blur(8px);
-      transition: transform 0.08s ease, background 0.12s ease;
-      touch-action: manipulation;
+      -webkit-backdrop-filter: blur(8px);
+      transition: transform 0.06s ease, background 0.1s ease, border-color 0.1s ease;
+      touch-action: none;
+      z-index: 10;
     }
-    .touch-btn:active {
-      transform: scale(0.92);
-      background: rgba(56, 189, 248, 0.35);
-      border-color: #38bdf8;
+    .touch-btn.pressed {
+      transform: scale(0.91);
+      background: rgba(56, 189, 248, 0.38);
+      border-color: #7dd3fc;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.55);
+    }
+    .touch-btn.editing-btn {
+      border-style: dashed;
+      border-width: 2px;
+      border-color: #f472b6;
+      box-shadow: 0 0 16px rgba(244, 114, 182, 0.45);
+      cursor: move;
+    }
+    .touch-btn.stocked-btn {
+      border-style: dotted;
+      border-color: #94a3b8;
+      background: rgba(30, 41, 59, 0.88);
+      opacity: 0.9;
+    }
+    .edit-grid-bg {
+      background-image:
+        linear-gradient(to right, rgba(0, 240, 255, 0.14) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 240, 255, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      border: 1.5px dashed rgba(0, 240, 255, 0.65);
+      background-color: rgba(10, 16, 38, 0.72);
+    }
+    .stock-tray-box {
+      border: 1.5px dashed rgba(251, 191, 36, 0.65);
+      background: rgba(28, 20, 40, 0.82);
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .stock-tray-box.drag-hover {
+      border-color: #34d399;
+      background: rgba(16, 65, 55, 0.88);
+      box-shadow: 0 0 20px rgba(52, 211, 153, 0.4);
     }
     @keyframes pulseGlow {
       0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 0, 200, 0.8)); transform: scale(1); }
-      50% { filter: drop-shadow(0 0 22px rgba(0, 255, 255, 1)); transform: scale(1.05); }
+      50% { filter: drop-shadow(0 0 22px rgba(0, 255, 255, 1)); transform: scale(1.04); }
     }
     .fever-active-glow {
       animation: pulseGlow 0.6s infinite ease-in-out;
@@ -110,194 +150,295 @@
   <!-- Floating Dynamic Action Callouts (TETRIS!! COMBO x5! FEVER!) -->
   <div id="calloutContainer" class="absolute inset-0 pointer-events-none z-20 overflow-hidden"></div>
 
-  <!-- Main HUD Overlay -->
-  <div class="relative z-20 flex flex-col justify-between w-full h-full p-2 sm:p-4 pointer-events-none">
+  <!-- Main HUD Overlay (Positioned & Measured Explicitly by JS) -->
+  <div id="mainHudWrapper" class="relative z-20 flex flex-col justify-between w-full h-full pointer-events-none" style="padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: max(6px, env(safe-area-inset-bottom)); padding-left: 8px; padding-right: 8px;">
 
-    <!-- Top Navigation / Status Bar -->
-    <header id="topHudBar" class="flex items-center justify-between gap-2 w-full max-w-6xl mx-auto pointer-events-auto">
-      <div class="flex items-center gap-2 sm:gap-3 neon-panel px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl">
-        <div class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></div>
-        <div>
-          <h1 class="font-cyber text-xs sm:text-base md:text-lg font-black tracking-wider text-cyan-300 neon-text-cyan">
-            CYBER TETRIS <span class="text-pink-400">3D</span>
-          </h1>
-          <p id="cameraModeLabel" class="text-[10px] text-slate-300 hidden sm:block">ドラッグで視点回転 / レーザーガイド搭載</p>
-        </div>
-      </div>
-
-      <!--Fever Gauge in Header Center -->
-      <div class="flex-1 max-w-xs sm:max-w-sm neon-panel-pink px-3 py-1.5 rounded-xl flex flex-col gap-1">
-        <div class="flex justify-between items-center text-[10px] sm:text-xs font-cyber">
-          <span id="feverStatusText" class="text-pink-300 font-bold tracking-wider">OVERDRIVE GAUGE</span>
-          <span id="feverPercentText" class="text-cyan-300 font-bold">0%</span>
-        </div>
-        <div class="w-full h-2.5 bg-slate-900/90 rounded-full overflow-hidden border border-pink-500/40 p-0.5">
-          <div id="feverBar" class="h-full w-0 rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-amber-400 transition-all duration-200"></div>
-        </div>
-      </div>
-
-      <!-- Top Control Buttons -->
-      <div class="flex items-center gap-1.5 sm:gap-2">
-        <button id="btnCamera" type="button" class="cyber-btn px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="カメラ視点切替 (V)">
-          <span>🎥</span>
-          <span id="btnCameraText" class="hidden md:inline">DYNAMIC</span>
-        </button>
-        <button id="btnAudio" type="button" class="cyber-btn px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="サウンド切替 (M)">
-          <span id="audioIcon">🔊</span>
-          <span id="audioText" class="hidden md:inline">SOUND ON</span>
-        </button>
-        <button id="btnPause" type="button" class="cyber-btn px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="一時停止 (P)">
-          <span id="pauseIcon">⏸️</span>
-          <span class="hidden md:inline">PAUSE</span>
-        </button>
-      </div>
-    </header>
-
-    <!-- Middle HUD: Left (Hold & Stats) + Center (3D Playfield Clear Space) + Right (Next & Fever Trigger) -->
-    <div class="flex-1 flex items-center justify-between w-full max-w-6xl mx-auto my-1 pointer-events-none">
-
-      <!-- Left Column: HOLD & Scoreboard -->
-      <div class="flex flex-col gap-2 sm:gap-3 w-24 sm:w-36 md:w-44 pointer-events-auto">
-        <!-- HOLD Piece -->
-        <div class="neon-panel rounded-2xl p-2 sm:p-3 flex flex-col items-center">
-          <div class="flex items-center justify-between w-full mb-1">
-            <span class="font-cyber text-[10px] sm:text-xs text-cyan-300 font-bold tracking-widest">HOLD</span>
-            <span class="text-[9px] text-slate-400 px-1.5 py-0.5 rounded bg-slate-800/80">C / SHIFT</span>
-          </div>
-          <canvas id="holdCanvas" width="96" height="72" class="w-20 h-14 sm:w-24 sm:h-16"></canvas>
-        </div>
-
-        <!-- Score & Stats -->
-        <div class="neon-panel rounded-2xl p-2.5 sm:p-3.5 flex flex-col gap-2">
+    <!-- TOP ZONE: Header -->
+    <div id="topZoneContainer" class="w-full max-w-6xl mx-auto flex flex-col gap-1.5 pointer-events-none">
+      <header id="topHudBar" class="flex items-center justify-between gap-1.5 sm:gap-2 w-full pointer-events-auto">
+        <div class="flex items-center gap-1.5 sm:gap-2.5 neon-panel px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-xl shrink-0">
+          <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></div>
           <div>
-            <div class="text-[10px] font-cyber text-slate-400 tracking-wider">SCORE</div>
-            <div id="scoreVal" class="font-cyber text-sm sm:text-xl md:text-2xl font-black text-cyan-300 neon-text-cyan tabular-nums">0</div>
+            <h1 class="font-cyber text-[11px] sm:text-sm md:text-base font-black tracking-wider text-cyan-300 neon-text-cyan leading-tight">
+              CYBER TETRIS <span class="text-pink-400">3D</span>
+            </h1>
+            <p id="cameraModeLabel" class="text-[9px] text-slate-300 leading-none mt-0.5">下部ボタン操作 / 盤面ドラッグで3D視点</p>
           </div>
-          <div class="border-t border-cyan-500/20 pt-1.5">
-            <div class="text-[10px] font-cyber text-slate-400 tracking-wider">BEST</div>
-            <div id="bestVal" class="font-cyber text-xs sm:text-base font-bold text-amber-300 tabular-nums">0</div>
+        </div>
+
+        <!-- Fever Gauge in Header Center (Tappable to Trigger Burst!) -->
+        <div id="headerFeverBox" class="flex-1 max-w-[180px] sm:max-w-xs neon-panel-pink px-2.5 py-1 rounded-xl flex flex-col gap-0.5 cursor-pointer active:scale-95 transition-transform" title="タップでHYPER BURST発動 (F)">
+          <div class="flex justify-between items-center text-[9px] sm:text-[11px] font-cyber">
+            <span id="feverStatusText" class="text-pink-300 font-bold tracking-wider truncate">OVERDRIVE</span>
+            <span id="feverPercentText" class="text-cyan-300 font-bold ml-1">0%</span>
           </div>
-          <div class="grid grid-cols-2 gap-1 border-t border-cyan-500/20 pt-1.5">
+          <div class="w-full h-2 bg-slate-900/90 rounded-full overflow-hidden border border-pink-500/40 p-0.5">
+            <div id="feverBar" class="h-full w-0 rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-amber-400 transition-all duration-200"></div>
+          </div>
+        </div>
+
+        <!-- Top Control Buttons -->
+        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          <button id="btnCamera" type="button" class="cyber-btn px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="カメラ視点切替 (V)">
+            <span>🎥</span>
+            <span id="btnCameraText" class="hidden md:inline">DYNAMIC</span>
+          </button>
+          <button id="btnAudio" type="button" class="cyber-btn px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="サウンド切替 (M)">
+            <span id="audioIcon">🔊</span>
+            <span id="audioText" class="hidden md:inline">SOUND ON</span>
+          </button>
+          <button id="btnSettings" type="button" class="cyber-btn px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-cyber flex items-center gap-1 text-pink-200 border-pink-400/50" title="設定・ボタン配置編集">
+            <span>⚙️</span>
+            <span class="hidden sm:inline">設定</span>
+          </button>
+          <button id="btnPause" type="button" class="cyber-btn px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-cyber flex items-center gap-1 text-cyan-200" title="一時停止 (P)">
+            <span id="pauseIcon">⏸️</span>
+            <span class="hidden md:inline">PAUSE</span>
+          </button>
+        </div>
+      </header>
+    </div>
+
+    <!-- MIDDLE ZONE: Adaptive Wrapper (JS switches between Portrait Top Strip vs Wide Side Columns) -->
+    <div id="middleHudArea" class="flex-1 relative w-full max-w-6xl mx-auto pointer-events-none">
+
+      <!-- Left Panel: HOLD & Scoreboard -->
+      <div id="leftHudPanel" class="pointer-events-auto flex gap-2">
+        <div id="holdCard" class="neon-panel rounded-2xl p-1.5 sm:p-2.5 flex flex-col items-center justify-center shrink-0">
+          <div class="flex items-center justify-between w-full px-1 mb-0.5">
+            <span class="font-cyber text-[9px] sm:text-xs text-cyan-300 font-bold tracking-widest">HOLD</span>
+            <span class="text-[8px] text-slate-400 px-1 rounded bg-slate-800/80 hidden sm:inline">C</span>
+          </div>
+          <canvas id="holdCanvas" width="76" height="52" class="w-14 h-10 sm:w-20 sm:h-14"></canvas>
+        </div>
+
+        <div id="statsCard" class="neon-panel rounded-2xl px-2.5 py-1.5 sm:p-3 flex flex-col justify-center gap-1 flex-1">
+          <div class="flex items-baseline justify-between gap-2">
             <div>
-              <div class="text-[9px] font-cyber text-slate-400">LEVEL</div>
-              <div id="levelVal" class="font-cyber text-xs sm:text-base font-extrabold text-pink-400">1</div>
+              <div class="text-[8px] sm:text-[10px] font-cyber text-slate-400 tracking-wider">SCORE</div>
+              <div id="scoreVal" class="font-cyber text-xs sm:text-xl font-black text-cyan-300 neon-text-cyan tabular-nums leading-tight">0</div>
             </div>
-            <div>
-              <div class="text-[9px] font-cyber text-slate-400">LINES</div>
-              <div id="linesVal" class="font-cyber text-xs sm:text-base font-extrabold text-emerald-300">0</div>
+            <div class="text-right">
+              <div class="text-[8px] sm:text-[10px] font-cyber text-slate-400 tracking-wider">BEST</div>
+              <div id="bestVal" class="font-cyber text-[10px] sm:text-sm font-bold text-amber-300 tabular-nums leading-tight">0</div>
             </div>
           </div>
-          <div id="comboBadge" class="hidden mt-1 rounded-lg bg-gradient-to-r from-pink-600/80 to-amber-500/80 px-2 py-1 text-center">
-            <span id="comboText" class="font-cyber text-xs sm:text-sm font-black text-white">2 REN!</span>
+          <div class="grid grid-cols-2 gap-1 border-t border-cyan-500/20 pt-1">
+            <div class="flex items-baseline justify-between pr-1">
+              <span class="text-[8px] sm:text-[9px] font-cyber text-slate-400">LV</span>
+              <span id="levelVal" class="font-cyber text-[10px] sm:text-sm font-extrabold text-pink-400">1</span>
+            </div>
+            <div class="flex items-baseline justify-between pl-1 border-l border-cyan-500/20">
+              <span class="text-[8px] sm:text-[9px] font-cyber text-slate-400">LINE</span>
+              <span id="linesVal" class="font-cyber text-[10px] sm:text-sm font-extrabold text-emerald-300">0</span>
+            </div>
+          </div>
+          <div id="comboBadge" class="hidden rounded bg-gradient-to-r from-pink-600/80 to-amber-500/80 px-1.5 py-0.5 text-center">
+            <span id="comboText" class="font-cyber text-[9px] sm:text-xs font-black text-white">2 REN!</span>
           </div>
         </div>
       </div>
 
-      <!-- Center Area: Transparent so 3D board shines -->
-      <div class="flex-1 h-full"></div>
-
-      <!-- Right Column: NEXT Queue & Overdrive Trigger -->
-      <div class="flex flex-col gap-2 sm:gap-3 w-24 sm:w-36 md:w-44 pointer-events-auto">
-        <!-- NEXT 3 Pieces -->
-        <div class="neon-panel rounded-2xl p-2 sm:p-3 flex flex-col items-center">
-          <div class="w-full flex items-center justify-between mb-1">
-            <span class="font-cyber text-[10px] sm:text-xs text-cyan-300 font-bold tracking-widest">NEXT</span>
-            <span class="text-[9px] text-cyan-400">3 QUEUE</span>
+      <!-- Right Panel: NEXT Queue & Overdrive Trigger -->
+      <div id="rightHudPanel" class="pointer-events-auto flex flex-col gap-2">
+        <div id="nextCard" class="neon-panel rounded-2xl p-1.5 sm:p-2.5 flex flex-col items-center justify-center">
+          <div class="w-full flex items-center justify-between px-1 mb-0.5">
+            <span class="font-cyber text-[9px] sm:text-xs text-cyan-300 font-bold tracking-widest">NEXT</span>
+            <span class="text-[8px] text-cyan-400 hidden sm:inline">3 QUEUE</span>
           </div>
-          <canvas id="nextCanvas" width="96" height="190" class="w-20 h-36 sm:w-24 sm:h-44"></canvas>
+          <canvas id="nextCanvas" width="156" height="52" class="w-28 h-10 sm:w-24 sm:h-40"></canvas>
         </div>
 
-        <!-- Manual OVERDRIVE / Fireworks Trigger -->
-        <button id="btnFeverTrigger" type="button" class="neon-panel-pink rounded-2xl p-2.5 sm:p-3 text-center transition-all hover:scale-105 active:scale-95 cursor-pointer">
-          <div class="font-cyber text-[10px] sm:text-xs font-black text-pink-300 neon-text-pink">⚡ HYPER BURST</div>
-          <div id="feverBtnSub" class="text-[10px] text-slate-300 mt-0.5">Fキー / タップで衝撃波</div>
+        <button id="btnFeverTrigger" type="button" class="neon-panel-pink rounded-2xl px-2.5 py-1.5 sm:p-2.5 text-center transition-all hover:scale-105 active:scale-95 cursor-pointer">
+          <div class="font-cyber text-[9px] sm:text-xs font-black text-pink-300 neon-text-pink">⚡ HYPER BURST</div>
+          <div id="feverBtnSub" class="text-[8px] sm:text-[10px] text-slate-300 mt-0.5 hidden sm:block">Fキー / タップで衝撃波</div>
         </button>
 
-        <!-- Controls Hint (Desktop) -->
-        <div class="neon-panel rounded-2xl p-2.5 hidden lg:flex flex-col gap-1 text-[11px] text-slate-300">
+        <div id="desktopControlsCard" class="neon-panel rounded-2xl p-2.5 hidden xl:flex flex-col gap-1 text-[11px] text-slate-300">
           <div class="font-cyber text-[10px] text-cyan-300 font-bold mb-0.5">CONTROLS</div>
           <div class="flex justify-between"><span>移動</span><span class="text-cyan-200 font-mono">← → / A D</span></div>
-          <div class="flex justify-between"><span>回転</span><span class="text-cyan-200 font-mono">↑ / Z / X</span></div>
-          <div class="flex justify-between"><span>ソフト落下</span><span class="text-cyan-200 font-mono">↓ / S</span></div>
-          <div class="flex justify-between"><span>ハード落下</span><span class="text-cyan-200 font-mono">SPACE</span></div>
+          <div class="flex justify-between"><span>左/右回転</span><span class="text-cyan-200 font-mono">Z / X・↑</span></div>
+          <div class="flex justify-between"><span>落下</span><span class="text-cyan-200 font-mono">↓ / SPACE</span></div>
           <div class="flex justify-between"><span>ホールド</span><span class="text-cyan-200 font-mono">C / SHIFT</span></div>
-          <div class="flex justify-between"><span>視点ドラッグ</span><span class="text-cyan-200 font-mono">マウス操作</span></div>
         </div>
       </div>
 
     </div>
 
-    <!-- Bottom Touch / Arcade Controller Bar -->
-    <footer id="bottomHudBar" class="w-full max-w-xl mx-auto pointer-events-auto pb-0.5">
-      <div class="grid grid-cols-6 gap-1.5 sm:gap-2">
-        <button id="touchLeft" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-cyan-200 font-bold">
-          <span class="text-sm sm:text-base leading-none">◀</span>
-          <span class="text-[9px] font-cyber mt-0.5 text-slate-300">LEFT</span>
-        </button>
-        <button id="touchRight" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-cyan-200 font-bold">
-          <span class="text-sm sm:text-base leading-none">▶</span>
-          <span class="text-[9px] font-cyber mt-0.5 text-slate-300">RIGHT</span>
-        </button>
-        <button id="touchSoft" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-cyan-200 font-bold">
-          <span class="text-sm sm:text-base leading-none">▼</span>
-          <span class="text-[9px] font-cyber mt-0.5 text-slate-300">DOWN</span>
-        </button>
-        <button id="touchRotR" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-pink-300 font-bold border-pink-400/50">
-          <span class="text-sm sm:text-base leading-none">↻</span>
-          <span class="text-[9px] font-cyber mt-0.5 text-pink-200">ROTATE</span>
-        </button>
-        <button id="touchDrop" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-amber-300 font-bold border-amber-400/60 bg-amber-500/20">
-          <span class="text-sm sm:text-base leading-none">⚡</span>
-          <span class="text-[9px] font-cyber mt-0.5 text-amber-200">DROP</span>
-        </button>
-        <button id="touchHold" type="button" class="touch-btn rounded-xl py-1.5 sm:py-2 flex flex-col items-center justify-center text-emerald-300 font-bold border-emerald-400/50">
-          <span class="text-sm sm:text-base leading-none">⇄</span>
-          <span class="text-[9px] font-cyber mt-0.5 text-emerald-200">HOLD</span>
-        </button>
+    <!-- BOTTOM ZONE: Customizable Touch Pad Area + Stock Tray (JS Positioned) -->
+    <footer id="bottomHudBar" class="w-full max-w-xl mx-auto pointer-events-auto flex flex-col gap-1.5">
+
+      <!-- DnD Edit Mode Toolbar -->
+      <div id="layoutEditToolbar" class="hidden neon-panel-pink rounded-xl px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+        <div class="flex items-center gap-1 flex-wrap">
+          <span class="font-cyber text-pink-300 font-bold text-[10px]">🛠️ 配置編集</span>
+          <button id="btnPresetRight" type="button" class="cyber-btn px-2 py-0.5 rounded-lg text-[10px] text-cyan-200 font-bold">右利き用</button>
+          <button id="btnPresetLeft" type="button" class="cyber-btn px-2 py-0.5 rounded-lg text-[10px] text-amber-200 font-bold">左利き用</button>
+          <button id="btnPresetRow" type="button" class="cyber-btn px-2 py-0.5 rounded-lg text-[10px] text-slate-200">横1列</button>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <label class="text-[10px] text-slate-300 flex items-center gap-1">
+            <span>サイズ</span>
+            <input id="btnScaleSlider" type="range" min="80" max="130" value="100" class="w-14 sm:w-16 accent-pink-400 cursor-pointer" />
+          </label>
+          <button id="btnFinishEdit" type="button" class="px-2.5 py-0.5 rounded-lg font-cyber font-bold text-[10px] bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950">完了</button>
+        </div>
+      </div>
+
+      <!-- Unified Stage for Stock Tray + Active Touch Pad so buttons can be dragged seamlessly between them -->
+      <div id="touchPadEditorStage" class="relative w-full flex flex-col gap-1.5">
+
+        <!-- Stock Tray (Visible only during DnD Layout Edit Mode) -->
+        <div id="buttonStockTray" class="hidden stock-tray-box relative w-full rounded-xl px-2.5 py-1 overflow-hidden" style="height: 68px;">
+          <div class="flex items-center justify-between text-[9px] font-cyber text-amber-300/90 pointer-events-none">
+            <span>📦 ボタンストック置き場（不要なボタンをここへドロップすると非表示になります）</span>
+            <span id="stockCountBadge" class="text-cyan-300 font-bold">0個保管中</span>
+          </div>
+        </div>
+
+        <!-- Active Play Pad Area -->
+        <div id="touchPadCanvasArea" class="relative w-full rounded-2xl overflow-visible transition-colors" style="height: 154px;">
+          <button id="touchLeft" type="button" data-btn-key="left" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-cyan-200 font-bold">
+            <span class="text-base sm:text-lg leading-none pointer-events-none">◀</span>
+            <span class="text-[9px] font-cyber mt-0.5 text-slate-300 pointer-events-none">LEFT</span>
+          </button>
+          <button id="touchRight" type="button" data-btn-key="right" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-cyan-200 font-bold">
+            <span class="text-base sm:text-lg leading-none pointer-events-none">▶</span>
+            <span class="text-[9px] font-cyber mt-0.5 text-slate-300 pointer-events-none">RIGHT</span>
+          </button>
+          <button id="touchSoft" type="button" data-btn-key="down" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-cyan-200 font-bold">
+            <span class="text-base sm:text-lg leading-none pointer-events-none">▼</span>
+            <span class="text-[9px] font-cyber mt-0.5 text-slate-300 pointer-events-none">DOWN</span>
+          </button>
+          <button id="touchRotL" type="button" data-btn-key="rotL" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-purple-300 font-bold border-purple-400/60 bg-purple-500/15">
+            <span class="text-base sm:text-lg leading-none pointer-events-none">↺</span>
+            <span class="text-[9px] font-cyber mt-0.5 text-purple-200 pointer-events-none">ROT L</span>
+          </button>
+          <button id="touchRotR" type="button" data-btn-key="rotate" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-pink-300 font-bold border-pink-400/60 bg-pink-500/15">
+            <span class="text-base sm:text-lg leading-none pointer-events-none">↻</span>
+            <span class="text-[9px] font-cyber mt-0.5 text-pink-200 pointer-events-none">ROTATE</span>
+          </button>
+          <button id="touchDrop" type="button" data-btn-key="drop" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-amber-300 font-bold border-amber-400/60 bg-amber-500/20">
+            <span class="text-base sm:text-lg leading-none pointer-events-none">⚡</span>
+            <span class="text-[9px] font-cyber mt-0.5 text-amber-200 pointer-events-none">DROP</span>
+          </button>
+          <button id="touchHold" type="button" data-btn-key="hold" class="touch-btn rounded-2xl flex flex-col items-center justify-center text-emerald-300 font-bold border-emerald-400/60 bg-emerald-500/15">
+            <span class="text-base sm:text-lg leading-none pointer-events-none">⇄</span>
+            <span class="text-[9px] font-cyber mt-0.5 text-emerald-200 pointer-events-none">HOLD</span>
+          </button>
+        </div>
+
       </div>
     </footer>
   </div>
 
+  <!-- Settings & Customization Modal -->
+  <div id="settingsModal" class="hidden absolute inset-0 z-40 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
+    <div class="neon-panel max-w-md w-full rounded-3xl p-5 sm:p-6 flex flex-col gap-4 border border-cyan-400/50 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-cyan-500/25 pb-2.5">
+        <h3 class="font-cyber text-base sm:text-lg font-black text-cyan-300 neon-text-cyan">⚙️ コントロール＆ボタン配置設定</h3>
+        <button id="btnCloseSettings" type="button" class="cyber-btn px-2.5 py-1 rounded-lg text-xs text-slate-200">✕ 閉じる</button>
+      </div>
+
+      <!-- Control Mode Display (Default Mode A Active; Mode B retained internally) -->
+      <div class="flex flex-col gap-1.5">
+        <div class="text-xs font-bold text-pink-300 font-cyber">1. 操作スタイル</div>
+        <div class="grid grid-cols-1 gap-2">
+          <button id="btnSelectModeA" type="button" class="text-left p-3 rounded-2xl border transition-all flex items-start gap-2.5 bg-cyan-500/20 border-cyan-400">
+            <span class="text-lg leading-none mt-0.5">🎮</span>
+            <div>
+              <div class="text-xs font-bold text-cyan-200">下部ボタン操作（盤面ドラッグで3D視点回転）</div>
+              <div class="text-[11px] text-slate-300 mt-0.5">ミノの操作は下部タッチボタンで行い、3D盤面エリアのドラッグはステージの角度変更に使います。</div>
+            </div>
+          </button>
+          <!-- B案は内部保持（デフォルト非表示） -->
+          <button id="btnSelectModeB" type="button" class="hidden text-left p-3 rounded-2xl border transition-all flex items-start gap-2.5 bg-slate-900/70 border-slate-700">
+            <span class="text-lg leading-none mt-0.5">👆</span>
+            <div>
+              <div class="text-xs font-bold text-cyan-200">B案：スワイプ＋下部ボタン併用（おすすめ）</div>
+              <div class="text-[11px] text-slate-300 mt-0.5">盤面の左右スワイプで移動・下フリックでハードドロップ・タップで回転。下部ボタンも同時に使えます。</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Button Preset Selection -->
+      <div class="flex flex-col gap-1.5">
+        <div class="text-xs font-bold text-pink-300 font-cyber">2. 下部タッチボタンのプリセット配置（全7ボタン）</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button id="btnModalPresetRight" type="button" class="cyber-btn py-2.5 px-2 rounded-xl text-xs font-bold text-cyan-200 flex flex-col items-center gap-0.5">
+            <span>🫱 右利き用</span>
+            <span class="text-[9px] text-slate-300 font-normal">左:移動 / 右:回転・落下</span>
+          </button>
+          <button id="btnModalPresetLeft" type="button" class="cyber-btn py-2.5 px-2 rounded-xl text-xs font-bold text-amber-200 flex flex-col items-center gap-0.5">
+            <span>🫲 左利き用</span>
+            <span class="text-[9px] text-slate-300 font-normal">左:回転・落下 / 右:移動</span>
+          </button>
+          <button id="btnModalPresetRow" type="button" class="cyber-btn py-2.5 px-2 rounded-xl text-xs font-bold text-slate-200 flex flex-col items-center gap-0.5">
+            <span>📏 横1列</span>
+            <span class="text-[9px] text-slate-300 font-normal">6ボタン横並び</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Launch Free DnD Button Layout Editor with Stock Tray -->
+      <div class="flex flex-col gap-1.5 pt-1 border-t border-cyan-500/20">
+        <div class="text-xs font-bold text-pink-300 font-cyber">3. 自由ドラッグ＆ドロップ（DnD）＆ボタンストック</div>
+        <p class="text-[11px] text-slate-300 leading-relaxed">
+          ボタン位置を自由に動かせるほか、使わないボタンを「📦ストック置き場」へドラッグしてゲーム画面から隠すことができます。
+        </p>
+        <button id="btnStartLayoutEdit" type="button" class="w-full py-2.5 px-4 rounded-xl font-cyber font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-pink-500 to-purple-600 hover:brightness-110 shadow-lg cursor-pointer">
+          🛠️ ボタン配置をDnDで自由に編集する
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Start / Pause / Game Over Modal Overlay -->
   <div id="modalOverlay" class="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-    <div class="neon-panel-pink max-w-md w-full rounded-3xl p-6 sm:p-8 text-center flex flex-col items-center gap-4 border border-cyan-400/50 shadow-2xl">
+    <div class="neon-panel-pink max-w-md w-full rounded-3xl p-5 sm:p-7 text-center flex flex-col items-center gap-3.5 border border-cyan-400/50 shadow-2xl">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-cyber">
-        <span>✨ ULTRA NEON 3D EDITION</span>
+        <span>✨ iPhone 17 & 3D EDITION</span>
       </div>
       <h2 id="modalTitle" class="font-cyber text-2xl sm:text-4xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-amber-300">
         CYBER TETRIS 3D
       </h2>
       <p id="modalSubtitle" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-        ド派手な3Dパーティクル爆破・レーザーハードドロップ・シンセBGM・FEVERモード搭載！ラインを揃えて空間を揺らせ！
+        下部ボタン専用操作＆左右回転対応！右利き・左利きプリセットやストック置き場付き自由DnD配置で快適に遊べます！
       </p>
 
       <!-- Final Score Display (Shown on Game Over) -->
-      <div id="modalScoreBox" class="hidden w-full neon-panel rounded-2xl p-4 my-1">
+      <div id="modalScoreBox" class="hidden w-full neon-panel rounded-2xl p-3.5 my-0.5">
         <div class="text-xs font-cyber text-slate-400">FINAL SCORE</div>
         <div id="modalFinalScore" class="font-cyber text-3xl font-black text-cyan-300 neon-text-cyan mt-1">0</div>
       </div>
 
-      <div class="w-full grid grid-cols-3 gap-2 text-left text-[11px] bg-slate-900/70 p-3 rounded-2xl border border-slate-700/60">
+      <div class="w-full grid grid-cols-3 gap-2 text-left text-[11px] bg-slate-900/70 p-2.5 rounded-2xl border border-slate-700/60">
         <div class="flex flex-col items-center text-center p-1">
-          <span class="text-lg">💥</span>
-          <span class="font-bold text-cyan-300 mt-1">3Dブロック爆砕</span>
-          <span class="text-[10px] text-slate-400">ライン消去で破片と衝撃波が炸裂</span>
+          <span class="text-base">↺↻</span>
+          <span class="font-bold text-cyan-300 mt-0.5">左右回転ボタン</span>
+          <span class="text-[9px] text-slate-400">左回転・右回転を個別配置</span>
         </div>
         <div class="flex flex-col items-center text-center p-1">
-          <span class="text-lg">🌈</span>
-          <span class="font-bold text-pink-300 mt-1">FEVERモード</span>
-          <span class="text-[10px] text-slate-400">連続消去でスコア2倍＆虹色空間</span>
+          <span class="text-base">📦</span>
+          <span class="font-bold text-pink-300 mt-0.5">ストック置き場</span>
+          <span class="text-[9px] text-slate-400">不要なボタンをDnDで非表示化</span>
         </div>
         <div class="flex flex-col items-center text-center p-1">
-          <span class="text-lg">🎹</span>
-          <span class="font-bold text-amber-300 mt-1">シンセ音源</span>
-          <span class="text-[10px] text-slate-400">コンボ連動ビート＆効果音</span>
+          <span class="text-base">🌈</span>
+          <span class="font-bold text-amber-300 mt-0.5">FEVER x2</span>
+          <span class="text-[9px] text-slate-400">連続消去で虹色オーバードライブ</span>
         </div>
       </div>
 
-      <button id="btnStartGame" type="button" class="w-full py-3.5 px-6 rounded-2xl font-cyber font-black text-base sm:text-lg tracking-wider text-slate-950 bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-amber-300 hover:brightness-110 active:scale-98 transition-all shadow-[0_0_30px_rgba(0,240,255,0.6)] cursor-pointer">
-        START OVERDRIVE
-      </button>
+      <div class="w-full flex flex-col sm:flex-row gap-2">
+        <button id="btnStartGame" type="button" class="flex-1 py-3 px-5 rounded-2xl font-cyber font-black text-base sm:text-lg tracking-wider text-slate-950 bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-amber-300 hover:brightness-110 active:scale-98 transition-all shadow-[0_0_30px_rgba(0,240,255,0.6)] cursor-pointer">
+          START OVERDRIVE
+        </button>
+        <button id="btnOpenSettingsFromModal" type="button" class="cyber-btn py-3 px-4 rounded-2xl font-cyber font-bold text-xs text-cyan-200 cursor-pointer">
+          ⚙️ 設定・配置
+        </button>
+      </div>
     </div>
   </div>
 
@@ -453,9 +594,7 @@
           const bassFreq = bassScale[step] * feverMult;
           const arpFreq = arpScale[(this.bgmStep * 3) % 8] * feverMult;
 
-          // Sub bass pulse
           this.playTone(bassFreq, 'sawtooth', 0.13, 0.045, bassFreq * 0.9);
-          // High cyber synth arpeggio
           if (this.bgmStep % 2 === 0 || gameState.feverActive) {
             this.playTone(arpFreq, 'triangle', 0.09, 0.035);
           }
@@ -573,7 +712,101 @@
     });
 
     // =========================================================================
-    // 3. GAME STATE & STORAGE
+    // 3. 7-BUTTON PRESETS, STOCK TRAY & PERSISTENT SETTINGS (JS Coordinate Driven)
+    // =========================================================================
+    // 7 buttons: left, right, down, rotL (左回転), rotate (右回転), drop, hold
+    // Each button has { xPct, yPct, w, h, stocked }
+    const LAYOUT_PRESETS = {
+      // 右利き用: 左親指で移動3ボタン、右親指で左回転・右回転・ハードドロップ・ホールドの2×2配置
+      right_handed: {
+        left:   { xPct: 12, yPct: 30, w: 72, h: 54, stocked: false },
+        right:  { xPct: 33, yPct: 30, w: 72, h: 54, stocked: false },
+        down:   { xPct: 22.5, yPct: 75, w: 78, h: 52, stocked: false },
+        rotL:   { xPct: 64, yPct: 29, w: 74, h: 54, stocked: false },
+        rotate: { xPct: 86, yPct: 29, w: 74, h: 54, stocked: false },
+        hold:   { xPct: 64, yPct: 75, w: 74, h: 52, stocked: false },
+        drop:   { xPct: 86, yPct: 75, w: 74, h: 52, stocked: false }
+      },
+      // 左利き用: 左右ミラーリング（左親指で左回転・右回転・ドロップ・ホールド、右親指で移動3ボタン）
+      left_handed: {
+        rotL:   { xPct: 14, yPct: 29, w: 74, h: 54, stocked: false },
+        rotate: { xPct: 36, yPct: 29, w: 74, h: 54, stocked: false },
+        drop:   { xPct: 14, yPct: 75, w: 74, h: 52, stocked: false },
+        hold:   { xPct: 36, yPct: 75, w: 74, h: 52, stocked: false },
+        left:   { xPct: 67, yPct: 30, w: 72, h: 54, stocked: false },
+        right:  { xPct: 88, yPct: 30, w: 72, h: 54, stocked: false },
+        down:   { xPct: 77.5, yPct: 75, w: 78, h: 52, stocked: false }
+      },
+      // 横1列: 7ボタン均等横並び
+      single_row: {
+        left:   { xPct: 8,  yPct: 52, w: 52, h: 60, stocked: false },
+        right:  { xPct: 22, yPct: 52, w: 52, h: 60, stocked: false },
+        down:   { xPct: 36, yPct: 52, w: 52, h: 60, stocked: false },
+        rotL:   { xPct: 50, yPct: 52, w: 52, h: 60, stocked: false },
+        rotate: { xPct: 64, yPct: 52, w: 52, h: 60, stocked: false },
+        drop:   { xPct: 78, yPct: 52, w: 52, h: 60, stocked: false },
+        hold:   { xPct: 92, yPct: 52, w: 52, h: 60, stocked: false }
+      }
+    };
+
+    const BUTTON_ID_MAP = {
+      left:   'touchLeft',
+      right:  'touchRight',
+      down:   'touchSoft',
+      rotL:   'touchRotL',
+      rotate: 'touchRotR',
+      drop:   'touchDrop',
+      hold:   'touchHold'
+    };
+
+    const BUTTON_ORDER = ['left', 'right', 'down', 'rotL', 'rotate', 'drop', 'hold'];
+
+    function cloneLayout(presetObj) {
+      const copy = {};
+      BUTTON_ORDER.forEach(k => {
+        const src = presetObj[k] || LAYOUT_PRESETS.right_handed[k];
+        copy[k] = {
+          xPct: Number(src.xPct),
+          yPct: Number(src.yPct),
+          w: Number(src.w) || 72,
+          h: Number(src.h) || 54,
+          stocked: Boolean(src.stocked)
+        };
+      });
+      return copy;
+    }
+
+    function loadUserConfig() {
+      // Default is strictly Mode A (bottom buttons only; B案 kept internally)
+      const defaults = {
+        controlMode: 'A',
+        btnScale: 100,
+        layout: cloneLayout(LAYOUT_PRESETS.right_handed)
+      };
+      try {
+        const raw = localStorage.getItem('cyber_tetris_3d_config_v3');
+        if (!raw) return defaults;
+        const parsed = JSON.parse(raw);
+        return {
+          controlMode: parsed.controlMode === 'B' ? 'B' : 'A',
+          btnScale: Number(parsed.btnScale) || 100,
+          layout: parsed.layout ? cloneLayout(parsed.layout) : defaults.layout
+        };
+      } catch (e) {
+        return defaults;
+      }
+    }
+
+    function saveUserConfig() {
+      try {
+        localStorage.setItem('cyber_tetris_3d_config_v3', JSON.stringify(userConfig));
+      } catch (e) {}
+    }
+
+    const userConfig = loadUserConfig();
+
+    // =========================================================================
+    // 4. GAME STATE & HIGH SCORE STORAGE
     // =========================================================================
     function loadHighScore() {
       try {
@@ -601,25 +834,27 @@
       lines: 0,
       level: 1,
       combo: -1,
-      feverGauge: 0,      // 0 to 100
+      feverGauge: 0,
       feverActive: false,
       feverTimer: 0,
       running: false,
       paused: false,
+      editingLayout: false,
       dropAccumulator: 0,
-      cameraPreset: 0,    // 0: Dynamic, 1: Angled 3D, 2: Front Pro
+      cameraPreset: 0, // 0: Dynamic, 1: ISO 3D, 2: Front Pro
       userYaw: 0,
-      userPitch: 0
+      userPitch: 0,
+      isPortraitCompact: false
     };
 
     document.getElementById('bestVal').textContent = gameState.bestScore.toLocaleString();
 
     // =========================================================================
-    // 4. THREE.JS 3D SCENE, LIGHTING & FX ENGINE
+    // 5. THREE.JS 3D SCENE, LIGHTING & FX ENGINE
     // =========================================================================
     const container = document.getElementById('canvasContainer');
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x050514, 0.016);
+    scene.fog = new THREE.FogExp2(0x050514, 0.015);
 
     const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 200);
     const baseCamPos = new THREE.Vector3(0, 0, 31.0);
@@ -630,11 +865,9 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Board root group (centered around (0,0,0), shifted dynamically via worldGroup.position.y on resize)
     const worldGroup = new THREE.Group();
     scene.add(worldGroup);
 
-    // Coordinate conversion helper: board (col 0..9, row 0..19 from top) -> 3D space
     function gridToWorld(col, row) {
       return {
         x: col - COLS / 2 + 0.5,
@@ -643,7 +876,6 @@
       };
     }
 
-    // Lighting
     const ambientLight = new THREE.AmbientLight(0x404878, 1.35);
     scene.add(ambientLight);
 
@@ -663,26 +895,23 @@
     rimLightRight.position.set(9, 0, 4);
     worldGroup.add(rimLightRight);
 
-    // 3D Stage Frame & Back Grid
     const frameGroup = new THREE.Group();
     worldGroup.add(frameGroup);
 
     function buildCyberStage() {
-      // Back translucent cyber wall
       const backGeo = new THREE.PlaneGeometry(COLS, ROWS);
       const backMat = new THREE.MeshStandardMaterial({
         color: 0x080d24,
         roughness: 0.3,
         metalness: 0.7,
         transparent: true,
-        opacity: 0.82
+        opacity: 0.84
       });
       const backMesh = new THREE.Mesh(backGeo, backMat);
       backMesh.position.set(0, 0, -0.55);
       frameGroup.add(backMesh);
 
-      // Grid lines inside board
-      const gridMat = new THREE.LineBasicMaterial({ color: 0x1e3a8a, transparent: true, opacity: 0.5 });
+      const gridMat = new THREE.LineBasicMaterial({ color: 0x1e3a8a, transparent: true, opacity: 0.55 });
       const gridPoints = [];
       for (let c = 0; c <= COLS; c++) {
         const x = c - COLS / 2;
@@ -698,7 +927,6 @@
       const gridLines = new THREE.LineSegments(gridGeo, gridMat);
       frameGroup.add(gridLines);
 
-      // Glowing Outer Neon Pillars
       const pillarGeo = new THREE.BoxGeometry(0.32, ROWS + 0.6, 1.25);
       const pillarMatL = new THREE.MeshStandardMaterial({
         color: 0x00f5ff,
@@ -724,7 +952,6 @@
     }
     buildCyberStage();
 
-    // Background Floating Cyber Tunnel Rings & Starfield
     const tunnelRings = [];
     const ringGeo = new THREE.TorusGeometry(19, 0.08, 8, 64);
     for (let i = 0; i < 8; i++) {
@@ -740,7 +967,6 @@
       tunnelRings.push(ring);
     }
 
-    // Starfield Particles
     const starCount = 450;
     const starGeo = new THREE.BufferGeometry();
     const starPositions = new Float32Array(starCount * 3);
@@ -754,7 +980,6 @@
     const starField = new THREE.Points(starGeo, starMat);
     scene.add(starField);
 
-    // Block Mesh Pool for Board, Active Piece, Ghost Piece & Laser Guides
     const blockGeo = new THREE.BoxGeometry(0.92, 0.92, 0.92);
     const innerCoreGeo = new THREE.BoxGeometry(0.58, 0.58, 0.98);
     const edgeGeo = new THREE.EdgesGeometry(blockGeo);
@@ -809,7 +1034,7 @@
     }
 
     // =========================================================================
-    // 5. EXPLOSIVE 3D FX (Shards, Shockwaves, Hard-Drop Lasers, Camera Shake)
+    // 6. EXPLOSIVE 3D FX (Shards, Shockwaves, Hard-Drop Lasers, Camera Shake)
     // =========================================================================
     const particles = [];
     const shockwaves = [];
@@ -834,8 +1059,8 @@
       const el = document.createElement('div');
       el.className = `callout-anim absolute left-1/2 top-1/3 -translate-x-1/2 text-center pointer-events-none`;
       el.innerHTML = `
-        <div class="font-cyber text-2xl sm:text-4xl md:text-5xl font-black tracking-wider ${colorClass}">${title}</div>
-        ${subtitle ? `<div class="font-cyber text-xs sm:text-base font-bold text-white mt-1 bg-slate-900/70 px-3 py-0.5 rounded-full inline-block border border-white/30">${subtitle}</div>` : ''}
+        <div class="font-cyber text-xl sm:text-4xl md:text-5xl font-black tracking-wider ${colorClass}">${title}</div>
+        ${subtitle ? `<div class="font-cyber text-[11px] sm:text-base font-bold text-white mt-1 bg-slate-900/75 px-3 py-0.5 rounded-full inline-block border border-white/30">${subtitle}</div>` : ''}
       `;
       containerEl.appendChild(el);
       setTimeout(() => {
@@ -909,7 +1134,7 @@
     }
 
     // =========================================================================
-    // 6. TETRIS CORE LOGIC (7-Bag, Rotation with Wall Kicks, Line Clears)
+    // 7. TETRIS CORE LOGIC (7-Bag, Wall Kicks, Line Clears, Fever)
     // =========================================================================
     function refillBag() {
       const keys = Object.keys(TETROMINOES);
@@ -989,7 +1214,7 @@
     }
 
     function moveHorizontal(dir) {
-      if (!gameState.running || gameState.paused || !gameState.active) return false;
+      if (!gameState.running || gameState.paused || gameState.editingLayout || !gameState.active) return false;
       if (!checkCollision(gameState.active.col + dir, gameState.active.row, gameState.active.matrix)) {
         gameState.active.col += dir;
         audio.sfxMove();
@@ -1000,7 +1225,7 @@
     }
 
     function rotateActive(dir = 1) {
-      if (!gameState.running || gameState.paused || !gameState.active) return;
+      if (!gameState.running || gameState.paused || gameState.editingLayout || !gameState.active) return;
       const mat = gameState.active.matrix;
       const N = mat.length;
       const rotated = Array.from({ length: N }, () => Array(N).fill(0));
@@ -1014,7 +1239,6 @@
         }
       }
 
-      // Wall kick offsets
       const kicks = [
         [0, 0], [-1, 0], [1, 0], [0, -1], [-2, 0], [2, 0], [-1, -1], [1, -1]
       ];
@@ -1031,7 +1255,7 @@
     }
 
     function softDrop() {
-      if (!gameState.running || gameState.paused || !gameState.active) return;
+      if (!gameState.running || gameState.paused || gameState.editingLayout || !gameState.active) return;
       if (!checkCollision(gameState.active.col, gameState.active.row + 1, gameState.active.matrix)) {
         gameState.active.row++;
         gameState.score += gameState.feverActive ? 2 : 1;
@@ -1044,12 +1268,11 @@
     }
 
     function hardDrop() {
-      if (!gameState.running || gameState.paused || !gameState.active) return;
+      if (!gameState.running || gameState.paused || gameState.editingLayout || !gameState.active) return;
       const startRow = gameState.active.row;
       const ghostRow = getGhostRow();
       const dropDist = Math.max(0, ghostRow - startRow);
 
-      // Spawn laser trail for each column in active piece
       const mat = gameState.active.matrix;
       for (let r = 0; r < mat.length; r++) {
         for (let c = 0; c < mat[r].length; c++) {
@@ -1072,7 +1295,7 @@
     }
 
     function holdCurrentPiece() {
-      if (!gameState.running || gameState.paused || !gameState.active || !gameState.canHold) return;
+      if (!gameState.running || gameState.paused || gameState.editingLayout || !gameState.active || !gameState.canHold) return;
       audio.sfxHold();
       const currentType = gameState.active.type;
       if (!gameState.holdPiece) {
@@ -1139,7 +1362,6 @@
         return;
       }
 
-      // Explode cleared rows with intense 3D particles & horizontal laser beams
       fullRows.forEach(r => {
         const rowWorld = gridToWorld(4.5, r);
         spawnShockwave(0, rowWorld.y, 0xffffff, 14);
@@ -1151,17 +1373,14 @@
         }
       });
 
-      // Remove cleared rows and unshift empty rows at top
       const newBoard = gameState.board.filter((_, idx) => !fullRows.includes(idx));
       while (newBoard.length < ROWS) {
         newBoard.unshift(Array(COLS).fill(0));
       }
       gameState.board = newBoard;
 
-      // Check Perfect Clear
       const isPerfectClear = gameState.board.every(row => row.every(cell => cell === 0));
 
-      // Update Combo, Lines, Level, Score, and Fever Gauge
       gameState.combo++;
       const count = fullRows.length;
       gameState.lines += count;
@@ -1178,7 +1397,6 @@
       }
       gameState.score += earned;
 
-      // Charge Fever Gauge
       if (!gameState.feverActive) {
         gameState.feverGauge = Math.min(100, gameState.feverGauge + count * 22 + Math.max(0, gameState.combo * 8));
         if (gameState.feverGauge >= 100) {
@@ -1186,7 +1404,6 @@
         }
       }
 
-      // Audio + Visual Callouts
       audio.sfxLineClear(count, Math.max(0, gameState.combo), gameState.feverActive);
       addScreenShake(0.35 + count * 0.22);
 
@@ -1211,7 +1428,7 @@
     function activateFeverMode() {
       gameState.feverActive = true;
       gameState.feverGauge = 100;
-      gameState.feverTimer = 12.0; // 12 seconds of Overdrive
+      gameState.feverTimer = 12.0;
       audio.sfxFeverStart();
       addScreenShake(0.95);
       triggerScreenFlash('#ff00a0');
@@ -1226,7 +1443,6 @@
       if (gameState.feverGauge >= 50 && !gameState.feverActive) {
         activateFeverMode();
       } else {
-        // Fireworks shockwave burst at any time for maximum hype!
         audio.sfxFeverStart();
         addScreenShake(0.65);
         triggerScreenFlash('#00f5ff');
@@ -1243,7 +1459,7 @@
     }
 
     // =========================================================================
-    // 7. 3D MESH SYNCHRONIZATION & 2D MINI-CANVAS PREVIEWS
+    // 8. 3D MESH SYNCHRONIZATION & 2D MINI-CANVAS PREVIEWS
     // =========================================================================
     function clearThreeGroup(group) {
       while (group.children.length > 0) {
@@ -1283,7 +1499,6 @@
         for (let c = 0; c < matrix[r].length; c++) {
           if (!matrix[r][c]) continue;
 
-          // Active Piece Block
           const actCube = createNeonCube(type, false);
           const actPos = gridToWorld(col + c, row + r);
           actCube.position.set(actPos.x, actPos.y, actPos.z);
@@ -1293,7 +1508,6 @@
           sumY += actPos.y;
           count++;
 
-          // Ghost Piece Block
           const ghostCube = createNeonCube(type, true);
           const ghostPos = gridToWorld(col + c, ghostRow + r);
           ghostCube.position.set(ghostPos.x, ghostPos.y, ghostPos.z);
@@ -1307,26 +1521,37 @@
       }
     }
 
-    function drawMiniPiece(ctx, typeObj, offsetX, offsetY, cellSize = 16) {
+    function drawMiniPiece(ctx, typeObj, boxX, boxY, boxW, boxH, cellSize) {
       if (!typeObj) return;
       const mat = typeObj.matrix;
-      const rows = mat.length;
-      const cols = mat[0].length;
-      const startX = offsetX + (80 - cols * cellSize) / 2;
-      const startY = offsetY + (52 - rows * cellSize) / 2;
+      let minR = mat.length, maxR = -1, minC = mat[0].length, maxC = -1;
+      for (let r = 0; r < mat.length; r++) {
+        for (let c = 0; c < mat[r].length; c++) {
+          if (mat[r][c]) {
+            if (r < minR) minR = r;
+            if (r > maxR) maxR = r;
+            if (c < minC) minC = c;
+            if (c > maxC) maxC = c;
+          }
+        }
+      }
+      const pieceW = (maxC - minC + 1) * cellSize;
+      const pieceH = (maxR - minR + 1) * cellSize;
+      const startX = boxX + (boxW - pieceW) * 0.5;
+      const startY = boxY + (boxH - pieceH) * 0.5;
 
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
           if (!mat[r][c]) continue;
-          const x = startX + c * cellSize;
-          const y = startY + r * cellSize;
+          const x = startX + (c - minC) * cellSize;
+          const y = startY + (r - minR) * cellSize;
           ctx.fillStyle = typeObj.hex;
           ctx.shadowColor = typeObj.hex;
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 6;
           ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 1;
-          ctx.strokeRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+          ctx.strokeRect(x + 1.5, y + 1.5, cellSize - 3, cellSize - 3);
         }
       }
       ctx.shadowBlur = 0;
@@ -1337,15 +1562,24 @@
       const hCtx = holdCanvas.getContext('2d');
       hCtx.clearRect(0, 0, holdCanvas.width, holdCanvas.height);
       if (gameState.holdPiece) {
-        drawMiniPiece(hCtx, gameState.holdPiece, 8, 10, 16);
+        drawMiniPiece(hCtx, gameState.holdPiece, 0, 0, holdCanvas.width, holdCanvas.height, 12);
       }
 
       const nextCanvas = document.getElementById('nextCanvas');
       const nCtx = nextCanvas.getContext('2d');
       nCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-      gameState.nextQueue.slice(0, 3).forEach((piece, idx) => {
-        drawMiniPiece(nCtx, piece, 8, idx * 60 + 6, 15);
-      });
+
+      if (gameState.isPortraitCompact) {
+        const slotW = nextCanvas.width / 3;
+        gameState.nextQueue.slice(0, 3).forEach((piece, idx) => {
+          drawMiniPiece(nCtx, piece, idx * slotW, 0, slotW, nextCanvas.height, 10);
+        });
+      } else {
+        const slotH = nextCanvas.height / 3;
+        gameState.nextQueue.slice(0, 3).forEach((piece, idx) => {
+          drawMiniPiece(nCtx, piece, 0, idx * slotH, nextCanvas.width, slotH, 13);
+        });
+      }
     }
 
     function updateHUD() {
@@ -1362,30 +1596,209 @@
       const comboText = document.getElementById('comboText');
       if (gameState.combo >= 1) {
         comboBadge.classList.remove('hidden');
-        comboText.textContent = `${gameState.combo} REN COMBO!`;
+        comboText.textContent = `${gameState.combo} REN!`;
       } else {
         comboBadge.classList.add('hidden');
       }
 
       const pct = Math.round(gameState.feverGauge);
       document.getElementById('feverBar').style.width = `${pct}%`;
-      document.getElementById('feverPercentText').textContent = gameState.feverActive ? 'OVERDRIVE!!' : `${pct}%`;
+      document.getElementById('feverPercentText').textContent = gameState.feverActive ? 'MAX!!' : `${pct}%`;
       const statusText = document.getElementById('feverStatusText');
       const triggerBtn = document.getElementById('btnFeverTrigger');
       if (gameState.feverActive) {
-        statusText.textContent = '🌈 FEVER x2 ACTIVE!';
+        statusText.textContent = '🌈 FEVER x2!';
         triggerBtn.classList.add('fever-active-glow');
       } else {
-        statusText.textContent = 'OVERDRIVE GAUGE';
+        statusText.textContent = 'OVERDRIVE';
         triggerBtn.classList.remove('fever-active-glow');
       }
     }
 
     // =========================================================================
-    // 8. GAME FLOW (Start, Pause, Game Over, Main Animation Loop)
+    // 9. EXPLICIT JS LAYOUT, BUTTON COORDINATES & STOCK TRAY ENGINE
+    // =========================================================================
+    function renderTouchPadButtonsJS() {
+      const padEl = document.getElementById('touchPadCanvasArea');
+      const trayEl = document.getElementById('buttonStockTray');
+      if (!padEl) return;
+
+      const padW = padEl.clientWidth || Math.min(window.innerWidth - 16, 560);
+      const padH = padEl.clientHeight || 154;
+      const scale = (userConfig.btnScale || 100) / 100;
+      const widthFactor = Math.min(1.06, Math.max(0.74, padW / 390));
+
+      // Count stocked buttons for neatly lining them up inside #buttonStockTray during edit mode
+      const stockedKeys = BUTTON_ORDER.filter(k => userConfig.layout[k] && userConfig.layout[k].stocked);
+      document.getElementById('stockCountBadge').textContent = `${stockedKeys.length}個保管中`;
+
+      // Compute vertical offset of #buttonStockTray relative to #touchPadCanvasArea when editing
+      // Since #buttonStockTray is right above #touchPadCanvasArea with 6px gap, its Y inside padEl coordinates is negative:
+      const trayHeight = trayEl ? (trayEl.offsetHeight || 68) : 68;
+      const trayTopInPadCoords = -(trayHeight + 6);
+
+      BUTTON_ORDER.forEach(key => {
+        const btnEl = document.getElementById(BUTTON_ID_MAP[key]);
+        const cfg = userConfig.layout[key] || LAYOUT_PRESETS.right_handed[key];
+        if (!btnEl || !cfg) return;
+
+        // If this button is currently being dragged by the user, don't overwrite its live drag coordinates
+        if (dndState.active && dndState.btnKey === key) return;
+
+        if (cfg.stocked) {
+          if (!gameState.editingLayout) {
+            // Hidden during normal gameplay!
+            btnEl.style.display = 'none';
+            return;
+          }
+          // In DnD Edit Mode: display stocked buttons neatly inside #buttonStockTray
+          btnEl.style.display = 'flex';
+          btnEl.classList.add('stocked-btn');
+          const idx = stockedKeys.indexOf(key);
+          const count = Math.max(1, stockedKeys.length);
+          const stockW = Math.min(62, Math.floor((padW - 24) / Math.max(count, 4)) - 6);
+          const stockH = 40;
+          const slotSpan = (padW - 16) / count;
+          const leftPx = Math.round(8 + idx * slotSpan + (slotSpan - stockW) * 0.5);
+          const topPx = Math.round(trayTopInPadCoords + 22);
+
+          btnEl.style.width = `${stockW}px`;
+          btnEl.style.height = `${stockH}px`;
+          btnEl.style.left = `${leftPx}px`;
+          btnEl.style.top = `${topPx}px`;
+          return;
+        }
+
+        // Active pad button
+        btnEl.style.display = 'flex';
+        btnEl.classList.remove('stocked-btn');
+
+        const btnW = Math.round(cfg.w * widthFactor * scale);
+        const btnH = Math.round(cfg.h * scale);
+
+        const centerX = (cfg.xPct / 100) * padW;
+        const centerY = (cfg.yPct / 100) * padH;
+
+        const leftPx = Math.max(3, Math.min(padW - btnW - 3, Math.round(centerX - btnW * 0.5)));
+        const topPx = Math.max(3, Math.min(padH - btnH - 3, Math.round(centerY - btnH * 0.5)));
+
+        btnEl.style.width = `${btnW}px`;
+        btnEl.style.height = `${btnH}px`;
+        btnEl.style.left = `${leftPx}px`;
+        btnEl.style.top = `${topPx}px`;
+      });
+    }
+
+    function handleResize() {
+      const w = window.innerWidth;
+      const h = Math.max(window.innerHeight, 320);
+      camera.aspect = w / h;
+
+      const isPortrait = (w < 768) || (w < h * 0.88);
+      gameState.isPortraitCompact = isPortrait;
+
+      const middleArea = document.getElementById('middleHudArea');
+      const leftPanel = document.getElementById('leftHudPanel');
+      const rightPanel = document.getElementById('rightHudPanel');
+      const nextCanvas = document.getElementById('nextCanvas');
+      const btnFeverTrigger = document.getElementById('btnFeverTrigger');
+      const padEl = document.getElementById('touchPadCanvasArea');
+
+      if (isPortrait) {
+        middleArea.style.display = 'flex';
+        middleArea.style.flexDirection = 'row';
+        middleArea.style.alignItems = 'stretch';
+        middleArea.style.justifyContent = 'space-between';
+        middleArea.style.gap = '6px';
+        middleArea.style.flex = '0 0 auto';
+        middleArea.style.marginTop = '4px';
+
+        leftPanel.style.flex = '1 1 auto';
+        leftPanel.style.flexDirection = 'row';
+        leftPanel.style.alignItems = 'stretch';
+
+        rightPanel.style.flex = '0 0 auto';
+        rightPanel.style.flexDirection = 'column';
+        rightPanel.style.justifyContent = 'space-between';
+
+        nextCanvas.width = 132;
+        nextCanvas.height = 44;
+        nextCanvas.style.width = '114px';
+        nextCanvas.style.height = '38px';
+        btnFeverTrigger.style.display = 'none';
+
+        padEl.style.height = h < 700 ? '132px' : '152px';
+      } else {
+        middleArea.style.display = 'flex';
+        middleArea.style.flexDirection = 'row';
+        middleArea.style.alignItems = 'center';
+        middleArea.style.justifyContent = 'space-between';
+        middleArea.style.flex = '1 1 auto';
+        middleArea.style.marginTop = '4px';
+
+        leftPanel.style.flex = '0 0 168px';
+        leftPanel.style.flexDirection = 'column';
+
+        rightPanel.style.flex = '0 0 168px';
+        rightPanel.style.flexDirection = 'column';
+
+        nextCanvas.width = 96;
+        nextCanvas.height = 180;
+        nextCanvas.style.width = '96px';
+        nextCanvas.style.height = '164px';
+        btnFeverTrigger.style.display = 'block';
+
+        padEl.style.height = '128px';
+      }
+
+      render2DPreviews();
+      renderTouchPadButtonsJS();
+
+      const headerRect = document.getElementById('topHudBar').getBoundingClientRect();
+      const middleRect = middleArea.getBoundingClientRect();
+      const footerRect = document.getElementById('bottomHudBar').getBoundingClientRect();
+
+      const topOccupiedPx = isPortrait
+        ? (middleRect.bottom + 8)
+        : (headerRect.bottom + 14);
+      const bottomOccupiedPx = (h - footerRect.top) + 12;
+
+      const safeHeightPx = Math.max(150, h - topOccupiedPx - bottomOccupiedPx);
+      const safeHeightFraction = safeHeightPx / h;
+
+      const sideOccupiedPx = isPortrait ? 16 : 360;
+      const safeWidthPx = Math.max(180, w - sideOccupiedPx);
+      const safeWidthFraction = safeWidthPx / w;
+
+      const boardWorldHeight = 22.4;
+      const boardWorldWidth = 12.0;
+
+      const halfVertFovRad = THREE.MathUtils.degToRad(camera.fov * 0.5);
+      const halfHorizFovRad = Math.atan(Math.tan(halfVertFovRad) * camera.aspect);
+
+      const requiredZForHeight = (boardWorldHeight * 0.5) / (Math.tan(halfVertFovRad) * safeHeightFraction);
+      const requiredZForWidth = (boardWorldWidth * 0.5) / (Math.tan(halfHorizFovRad) * safeWidthFraction);
+
+      baseCamPos.z = Math.max(requiredZForHeight, requiredZForWidth, 24.5);
+      baseCamPos.y = 0;
+      camera.position.z = baseCamPos.z;
+
+      const visibleWorldHeight = 2 * baseCamPos.z * Math.tan(halfVertFovRad);
+      const pixelOffsetY = (bottomOccupiedPx - topOccupiedPx) * 0.5;
+      worldGroup.position.y = (pixelOffsetY / h) * visibleWorldHeight;
+
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+
+    // =========================================================================
+    // 10. GAME FLOW (Start, Pause, Game Over, Main Loop)
     // =========================================================================
     function startGame() {
       audio.init();
+      if (gameState.editingLayout) setLayoutEditMode(false);
+      document.getElementById('settingsModal').classList.add('hidden');
+
       gameState.board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
       gameState.score = 0;
       gameState.lines = 0;
@@ -1414,6 +1827,7 @@
 
     function togglePause() {
       if (!gameState.running) return;
+      if (gameState.editingLayout) setLayoutEditMode(false);
       gameState.paused = !gameState.paused;
       const modal = document.getElementById('modalOverlay');
       const title = document.getElementById('modalTitle');
@@ -1422,7 +1836,7 @@
 
       if (gameState.paused) {
         title.textContent = 'PAUSED';
-        sub.textContent = '一息ついたら再開しよう！マウスドラッグで3Dステージを自由に眺められます。';
+        sub.textContent = '⚙️設定ボタンから「右利き/左利きプリセット」や「不要ボタンのストック＆自由DnD配置」がいつでも調整できます！';
         btn.textContent = 'RESUME GAME';
         modal.classList.remove('hidden');
       } else {
@@ -1431,6 +1845,7 @@
     }
 
     function triggerGameOver() {
+      stopHoldRepeat();
       gameState.running = false;
       gameState.paused = false;
       audio.stopBGM();
@@ -1447,7 +1862,6 @@
       modal.classList.remove('hidden');
     }
 
-    // Main Three.js + Game Loop
     let lastTime = performance.now();
 
     function animate(now) {
@@ -1455,8 +1869,7 @@
       const dt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
 
-      // 1. Update Gravity & Fever Timer
-      if (gameState.running && !gameState.paused) {
+      if (gameState.running && !gameState.paused && !gameState.editingLayout) {
         const dropInterval = Math.max(0.1, 0.85 - (gameState.level - 1) * 0.065);
         gameState.dropAccumulator += dt;
         if (gameState.dropAccumulator >= dropInterval) {
@@ -1481,7 +1894,6 @@
         }
       }
 
-      // 2. Update 3D Background Tunnel Rings & Starfield
       const tunnelSpeed = gameState.feverActive ? 22 : 7;
       tunnelRings.forEach((ring, idx) => {
         ring.position.z += tunnelSpeed * dt;
@@ -1497,7 +1909,6 @@
 
       starField.rotation.z += dt * (gameState.feverActive ? 0.25 : 0.04);
 
-      // 3. Update Exploding Shards
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.life -= p.decay * dt;
@@ -1506,7 +1917,7 @@
           particles.splice(i, 1);
           continue;
         }
-        p.vel.y -= 24 * dt; // Gravity
+        p.vel.y -= 24 * dt;
         p.mesh.position.addScaledVector(p.vel, dt);
         p.mesh.rotation.x += p.rotVel.x * dt;
         p.mesh.rotation.y += p.rotVel.y * dt;
@@ -1515,7 +1926,6 @@
         p.mesh.material.opacity = p.life;
       }
 
-      // 4. Update Shockwave Rings
       for (let i = shockwaves.length - 1; i >= 0; i--) {
         const sw = shockwaves[i];
         sw.life -= 1.85 * dt;
@@ -1529,7 +1939,6 @@
         sw.mesh.material.opacity = sw.life;
       }
 
-      // 5. Update Hard Drop Laser Beams
       for (let i = laserBeams.length - 1; i >= 0; i--) {
         const lb = laserBeams[i];
         lb.life -= 4.2 * dt;
@@ -1542,19 +1951,16 @@
         lb.mesh.material.opacity = lb.life * 0.8;
       }
 
-      // 6. Camera Motion & Screen Shake
       let targetRotY = gameState.userYaw;
       let targetRotX = gameState.userPitch;
 
       if (gameState.cameraPreset === 0) {
-        // Dynamic Action Camera: gently follows active piece X and sways
-        const activeOffsetX = gameState.active ? ((gameState.active.col - 4.5) * 0.032) : 0;
-        targetRotY += Math.sin(now * 0.0008) * 0.14 + activeOffsetX;
-        targetRotX += Math.cos(now * 0.0006) * 0.05;
+        const activeOffsetX = gameState.active ? ((gameState.active.col - 4.5) * 0.028) : 0;
+        targetRotY += Math.sin(now * 0.0008) * 0.11 + activeOffsetX;
+        targetRotX += Math.cos(now * 0.0006) * 0.04;
       } else if (gameState.cameraPreset === 1) {
-        // Isometric 3D Showcase Angle
-        targetRotY += 0.36;
-        targetRotX += 0.12;
+        targetRotY += 0.34;
+        targetRotX += 0.11;
       }
 
       worldGroup.rotation.y += (targetRotY - worldGroup.rotation.y) * 0.1;
@@ -1575,12 +1981,13 @@
     }
 
     // =========================================================================
-    // 9. INPUT LISTENERS (Keyboard, Mouse Orbit, Touch Controls, Window Resize)
+    // 11. INPUT CONTROLLERS: MODE A DEFAULT (MODE B RETAINED INTERNALLY) & DND
     // =========================================================================
     window.addEventListener('keydown', (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
         e.preventDefault();
       }
+      if (gameState.editingLayout) return;
       if (!gameState.running) {
         if (e.code === 'Space' || e.code === 'Enter') startGame();
         return;
@@ -1632,27 +2039,328 @@
       }
     });
 
-    // Mouse / Pointer Drag to Rotate 3D Board
-    let isDragging = false;
-    let prevPointer = { x: 0, y: 0 };
+    // 3D Viewport Pointer Handler (Default Mode A: 3D Camera Orbit; Mode B internally retained)
+    let boardPointer = {
+      active: false,
+      id: null,
+      startX: 0,
+      startY: 0,
+      lastStepX: 0,
+      lastStepY: 0,
+      prevX: 0,
+      prevY: 0,
+      startTime: 0,
+      moved: false
+    };
 
     renderer.domElement.addEventListener('pointerdown', (e) => {
-      isDragging = true;
-      prevPointer = { x: e.clientX, y: e.clientY };
+      if (gameState.editingLayout) return;
+      audio.init();
+      boardPointer.active = true;
+      boardPointer.id = e.pointerId;
+      boardPointer.startX = e.clientX;
+      boardPointer.startY = e.clientY;
+      boardPointer.lastStepX = e.clientX;
+      boardPointer.lastStepY = e.clientY;
+      boardPointer.prevX = e.clientX;
+      boardPointer.prevY = e.clientY;
+      boardPointer.startTime = performance.now();
+      boardPointer.moved = false;
     });
 
     window.addEventListener('pointermove', (e) => {
-      if (!isDragging) return;
-      const dx = (e.clientX - prevPointer.x) * 0.005;
-      const dy = (e.clientY - prevPointer.y) * 0.005;
-      gameState.userYaw = Math.max(-0.65, Math.min(0.65, gameState.userYaw + dx));
-      gameState.userPitch = Math.max(-0.4, Math.min(0.4, gameState.userPitch + dy));
-      prevPointer = { x: e.clientX, y: e.clientY };
+      if (!boardPointer.active || e.pointerId !== boardPointer.id) return;
+
+      if (userConfig.controlMode === 'A' || !gameState.running || gameState.paused) {
+        // Mode A: 3D Stage Angle Orbit
+        const dx = (e.clientX - boardPointer.prevX) * 0.005;
+        const dy = (e.clientY - boardPointer.prevY) * 0.005;
+        gameState.userYaw = Math.max(-0.65, Math.min(0.65, gameState.userYaw + dx));
+        gameState.userPitch = Math.max(-0.4, Math.min(0.4, gameState.userPitch + dy));
+        boardPointer.prevX = e.clientX;
+        boardPointer.prevY = e.clientY;
+        return;
+      }
+
+      // Mode B (Retained internally)
+      const stepPx = Math.max(20, Math.min(32, window.innerWidth * 0.065));
+      const dxStep = e.clientX - boardPointer.lastStepX;
+      const dyStep = e.clientY - boardPointer.lastStepY;
+
+      if (Math.abs(dxStep) >= stepPx) {
+        const steps = Math.trunc(dxStep / stepPx);
+        for (let i = 0; i < Math.abs(steps); i++) {
+          moveHorizontal(steps > 0 ? 1 : -1);
+        }
+        boardPointer.lastStepX += steps * stepPx;
+        boardPointer.moved = true;
+      }
+
+      if (dyStep >= stepPx * 1.15) {
+        const downSteps = Math.trunc(dyStep / (stepPx * 1.15));
+        for (let i = 0; i < downSteps; i++) {
+          softDrop();
+        }
+        boardPointer.lastStepY += downSteps * (stepPx * 1.15);
+        boardPointer.moved = true;
+      }
     });
 
-    window.addEventListener('pointerup', () => {
-      isDragging = false;
+    window.addEventListener('pointerup', (e) => {
+      if (!boardPointer.active || e.pointerId !== boardPointer.id) return;
+      boardPointer.active = false;
+
+      if (userConfig.controlMode === 'B' && gameState.running && !gameState.paused && !gameState.editingLayout) {
+        const totalDx = e.clientX - boardPointer.startX;
+        const totalDy = e.clientY - boardPointer.startY;
+        const elapsed = Math.max(1, performance.now() - boardPointer.startTime);
+        const vy = totalDy / elapsed;
+
+        if (totalDy > 42 && vy > 0.45 && Math.abs(totalDy) > Math.abs(totalDx) * 1.3) {
+          hardDrop();
+          return;
+        }
+        if (totalDy < -48 && vy < -0.45 && Math.abs(totalDy) > Math.abs(totalDx) * 1.3) {
+          holdCurrentPiece();
+          return;
+        }
+        if (!boardPointer.moved && Math.hypot(totalDx, totalDy) < 14 && elapsed < 260) {
+          rotateActive(1);
+        }
+      }
     });
+
+    // Touch Buttons: Normal Play (with Long-Press Auto-Repeat DAS/ARR) & DnD with Stock Tray
+    let repeatDelayTimer = null;
+    let repeatIntervalTimer = null;
+    let activeRepeatBtn = null;
+
+    function stopHoldRepeat() {
+      if (repeatDelayTimer) {
+        clearTimeout(repeatDelayTimer);
+        repeatDelayTimer = null;
+      }
+      if (repeatIntervalTimer) {
+        clearInterval(repeatIntervalTimer);
+        repeatIntervalTimer = null;
+      }
+      if (activeRepeatBtn) {
+        activeRepeatBtn.classList.remove('pressed');
+        activeRepeatBtn = null;
+      }
+    }
+
+    function executeTouchAction(key) {
+      audio.init();
+      switch (key) {
+        case 'left':   moveHorizontal(-1); break;
+        case 'right':  moveHorizontal(1); break;
+        case 'down':   softDrop(); break;
+        case 'rotL':   rotateActive(-1); break;
+        case 'rotate': rotateActive(1); break;
+        case 'drop':   hardDrop(); break;
+        case 'hold':   holdCurrentPiece(); break;
+      }
+    }
+
+    let dndState = {
+      active: false,
+      pointerId: null,
+      btnKey: null,
+      btnEl: null,
+      offsetX: 0,
+      offsetY: 0
+    };
+
+    BUTTON_ORDER.forEach(key => {
+      const btnEl = document.getElementById(BUTTON_ID_MAP[key]);
+      if (!btnEl) return;
+
+      btnEl.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        audio.init();
+
+        if (gameState.editingLayout) {
+          const rect = btnEl.getBoundingClientRect();
+          dndState.active = true;
+          dndState.pointerId = e.pointerId;
+          dndState.btnKey = key;
+          dndState.btnEl = btnEl;
+          dndState.offsetX = e.clientX - (rect.left + rect.width * 0.5);
+          dndState.offsetY = e.clientY - (rect.top + rect.height * 0.5);
+          btnEl.style.zIndex = '40';
+          btnEl.setPointerCapture(e.pointerId);
+          return;
+        }
+
+        // Normal gameplay button press
+        stopHoldRepeat();
+        activeRepeatBtn = btnEl;
+        btnEl.classList.add('pressed');
+        executeTouchAction(key);
+
+        if (key === 'left' || key === 'right' || key === 'down') {
+          const intervalMs = key === 'down' ? 45 : 60;
+          repeatDelayTimer = setTimeout(() => {
+            repeatIntervalTimer = setInterval(() => {
+              executeTouchAction(key);
+            }, intervalMs);
+          }, 155);
+        }
+      });
+
+      btnEl.addEventListener('pointermove', (e) => {
+        if (!gameState.editingLayout || !dndState.active || e.pointerId !== dndState.pointerId) return;
+        e.stopPropagation();
+        e.preventDefault();
+
+        const padEl = document.getElementById('touchPadCanvasArea');
+        const trayEl = document.getElementById('buttonStockTray');
+        const padRect = padEl.getBoundingClientRect();
+        const trayRect = trayEl.getBoundingClientRect();
+        const btnW = btnEl.offsetWidth;
+        const btnH = btnEl.offsetHeight;
+
+        const pointerCenterX = e.clientX - dndState.offsetX;
+        const pointerCenterY = e.clientY - dndState.offsetY;
+
+        // Highlight stock tray when hovering over it
+        const isOverTray = pointerCenterY < padRect.top;
+        if (isOverTray) {
+          trayEl.classList.add('drag-hover');
+        } else {
+          trayEl.classList.remove('drag-hover');
+        }
+
+        // Position button seamlessly across both Stock Tray and Active Pad (in padEl local coords)
+        const minTopInPad = (trayRect.top - padRect.top) + 4;
+        const maxTopInPad = padRect.height - btnH - 4;
+
+        const leftInPad = Math.max(4, Math.min(padRect.width - btnW - 4, Math.round(pointerCenterX - padRect.left - btnW * 0.5)));
+        const topInPad = Math.max(minTopInPad, Math.min(maxTopInPad, Math.round(pointerCenterY - padRect.top - btnH * 0.5)));
+
+        btnEl.style.left = `${leftInPad}px`;
+        btnEl.style.top = `${topInPad}px`;
+      });
+
+      const endBtnInteraction = (e) => {
+        if (gameState.editingLayout && dndState.active && e.pointerId === dndState.pointerId) {
+          const padEl = document.getElementById('touchPadCanvasArea');
+          const trayEl = document.getElementById('buttonStockTray');
+          const padRect = padEl.getBoundingClientRect();
+          const btnRect = btnEl.getBoundingClientRect();
+          const btnCenterX = btnRect.left + btnRect.width * 0.5;
+          const btnCenterY = btnRect.top + btnRect.height * 0.5;
+
+          trayEl.classList.remove('drag-hover');
+          btnEl.style.zIndex = '10';
+          dndState.active = false;
+
+          if (btnCenterY < padRect.top) {
+            // Dropped into Stock Tray -> mark as stocked!
+            userConfig.layout[key].stocked = true;
+            audio.sfxSoftDrop();
+          } else {
+            // Dropped onto Active Pad -> mark as active and store exact xPct / yPct!
+            userConfig.layout[key].stocked = false;
+            const localX = Math.max(btnRect.width * 0.5 + 3, Math.min(padRect.width - btnRect.width * 0.5 - 3, btnCenterX - padRect.left));
+            const localY = Math.max(btnRect.height * 0.5 + 3, Math.min(padRect.height - btnRect.height * 0.5 - 3, btnCenterY - padRect.top));
+            userConfig.layout[key].xPct = Math.round((localX / padRect.width) * 1000) / 10;
+            userConfig.layout[key].yPct = Math.round((localY / padRect.height) * 1000) / 10;
+            audio.sfxMove();
+          }
+
+          saveUserConfig();
+          renderTouchPadButtonsJS();
+          return;
+        }
+        stopHoldRepeat();
+      };
+
+      btnEl.addEventListener('pointerup', endBtnInteraction);
+      btnEl.addEventListener('pointercancel', endBtnInteraction);
+      btnEl.addEventListener('pointerleave', () => {
+        if (!gameState.editingLayout) stopHoldRepeat();
+      });
+    });
+
+    // =========================================================================
+    // 12. SETTINGS MODAL, PRESETS & DND EDIT MODE UI
+    // =========================================================================
+    function syncSettingsUI() {
+      const modeLabel = document.getElementById('cameraModeLabel');
+      if (userConfig.controlMode === 'B') {
+        modeLabel.textContent = 'B案: スワイプ＋ボタン併用';
+      } else {
+        modeLabel.textContent = '下部ボタン操作 / 盤面ドラッグで3D視点';
+      }
+      document.getElementById('btnScaleSlider').value = String(userConfig.btnScale || 100);
+    }
+
+    function applyPresetLayout(presetName, labelText) {
+      const preset = LAYOUT_PRESETS[presetName];
+      if (!preset) return;
+      userConfig.layout = cloneLayout(preset);
+      saveUserConfig();
+      renderTouchPadButtonsJS();
+      audio.sfxHold();
+      spawnFloatingCallout(labelText, '7 BUTTONS READY', 'text-cyan-300 neon-text-cyan');
+    }
+
+    function setLayoutEditMode(enabled) {
+      gameState.editingLayout = enabled;
+      const toolbar = document.getElementById('layoutEditToolbar');
+      const trayEl = document.getElementById('buttonStockTray');
+      const padEl = document.getElementById('touchPadCanvasArea');
+      const settingsModal = document.getElementById('settingsModal');
+      const mainModal = document.getElementById('modalOverlay');
+
+      if (enabled) {
+        settingsModal.classList.add('hidden');
+        mainModal.classList.add('hidden');
+        toolbar.classList.remove('hidden');
+        trayEl.classList.remove('hidden');
+        padEl.classList.add('edit-grid-bg');
+        BUTTON_ORDER.forEach(key => {
+          document.getElementById(BUTTON_ID_MAP[key]).classList.add('editing-btn');
+        });
+        handleResize();
+        spawnFloatingCallout('LAYOUT EDIT', '不要ボタンは上のストック置き場へ！', 'text-pink-400 neon-text-pink');
+      } else {
+        toolbar.classList.add('hidden');
+        trayEl.classList.add('hidden');
+        padEl.classList.remove('edit-grid-bg');
+        BUTTON_ORDER.forEach(key => {
+          document.getElementById(BUTTON_ID_MAP[key]).classList.remove('editing-btn');
+        });
+        saveUserConfig();
+        handleResize();
+        if (!gameState.running || gameState.paused) {
+          mainModal.classList.remove('hidden');
+        }
+      }
+    }
+
+    function openSettingsModal() {
+      audio.init();
+      if (gameState.running && !gameState.paused) {
+        gameState.paused = true;
+      }
+      syncSettingsUI();
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+      if (gameState.running && gameState.paused) {
+        const modal = document.getElementById('modalOverlay');
+        document.getElementById('modalTitle').textContent = 'PAUSED';
+        document.getElementById('modalSubtitle').textContent = '設定を保存しました！RESUMEでゲームを再開します。';
+        document.getElementById('btnStartGame').textContent = 'RESUME GAME';
+        modal.classList.remove('hidden');
+      }
+    }
 
     function cycleCameraPreset() {
       gameState.cameraPreset = (gameState.cameraPreset + 1) % 3;
@@ -1660,6 +2368,7 @@
       gameState.userPitch = 0;
       const names = ['DYNAMIC', 'ISO 3D', 'FRONT PRO'];
       document.getElementById('btnCameraText').textContent = names[gameState.cameraPreset];
+      spawnFloatingCallout(`CAM: ${names[gameState.cameraPreset]}`, '', 'text-cyan-300 neon-text-cyan');
     }
 
     function toggleAudioButton() {
@@ -1668,7 +2377,7 @@
       document.getElementById('audioText').textContent = isOn ? 'SOUND ON' : 'MUTED';
     }
 
-    // Button Bindings
+    // Bind Top & Modal Buttons
     document.getElementById('btnStartGame').addEventListener('click', () => {
       if (gameState.running && gameState.paused) {
         togglePause();
@@ -1684,62 +2393,49 @@
     document.getElementById('btnAudio').addEventListener('click', toggleAudioButton);
     document.getElementById('btnCamera').addEventListener('click', cycleCameraPreset);
     document.getElementById('btnFeverTrigger').addEventListener('click', triggerManualBurst);
+    document.getElementById('headerFeverBox').addEventListener('click', triggerManualBurst);
 
-    // Touch / Arcade Buttons
-    document.getElementById('touchLeft').addEventListener('click', () => moveHorizontal(-1));
-    document.getElementById('touchRight').addEventListener('click', () => moveHorizontal(1));
-    document.getElementById('touchSoft').addEventListener('click', () => softDrop());
-    document.getElementById('touchRotR').addEventListener('click', () => rotateActive(1));
-    document.getElementById('touchDrop').addEventListener('click', () => hardDrop());
-    document.getElementById('touchHold').addEventListener('click', () => holdCurrentPiece());
+    document.getElementById('btnSettings').addEventListener('click', openSettingsModal);
+    document.getElementById('btnOpenSettingsFromModal').addEventListener('click', openSettingsModal);
+    document.getElementById('btnCloseSettings').addEventListener('click', closeSettingsModal);
 
-    // Responsive Resize: compute exact HUD header & footer heights in JS so the 3D board never overlaps them
-    function handleResize() {
-      const w = window.innerWidth;
-      const h = Math.max(window.innerHeight, 320);
-      camera.aspect = w / h;
+    document.getElementById('btnSelectModeA').addEventListener('click', () => {
+      userConfig.controlMode = 'A';
+      saveUserConfig();
+      syncSettingsUI();
+      audio.sfxMove();
+    });
 
-      const headerEl = document.getElementById('topHudBar');
-      const footerEl = document.getElementById('bottomHudBar');
-      const topOccupied = headerEl ? headerEl.getBoundingClientRect().bottom + 16 : 72;
-      const footerRect = footerEl ? footerEl.getBoundingClientRect() : null;
-      const bottomOccupied = footerRect ? (h - footerRect.top) + 20 : 96;
+    document.getElementById('btnSelectModeB').addEventListener('click', () => {
+      userConfig.controlMode = 'B';
+      saveUserConfig();
+      syncSettingsUI();
+      audio.sfxMove();
+    });
 
-      // Safe vertical pixel ratio available for the 3D stage (total height ~23.2 world units including frame & 3D perspective tilt)
-      const safeHeightPx = Math.max(180, h - topOccupied - bottomOccupied);
-      const safeFraction = safeHeightPx / h;
-      const boardWorldHeight = 23.2;
-      const halfFovRad = THREE.MathUtils.degToRad(camera.fov * 0.5);
+    // Preset Buttons
+    document.getElementById('btnModalPresetRight').addEventListener('click', () => applyPresetLayout('right_handed', '右利き用プリセット'));
+    document.getElementById('btnModalPresetLeft').addEventListener('click', () => applyPresetLayout('left_handed', '左利き用プリセット'));
+    document.getElementById('btnModalPresetRow').addEventListener('click', () => applyPresetLayout('single_row', '横1列プリセット'));
 
-      // Required camera Z so boardWorldHeight fits inside safeFraction of viewport height
-      const requiredZForHeight = (boardWorldHeight * 0.5) / (Math.tan(halfFovRad) * safeFraction);
+    document.getElementById('btnPresetRight').addEventListener('click', () => applyPresetLayout('right_handed', '右利き用プリセット'));
+    document.getElementById('btnPresetLeft').addEventListener('click', () => applyPresetLayout('left_handed', '左利き用プリセット'));
+    document.getElementById('btnPresetRow').addEventListener('click', () => applyPresetLayout('single_row', '横1列プリセット'));
 
-      // Also ensure enough width on mobile screens so side panels don't crowd the board
-      let minZForWidth = 29.8;
-      if (w < 500) {
-        minZForWidth = 35.5;
-      } else if (w < 768) {
-        minZForWidth = 32.0;
-      }
+    document.getElementById('btnStartLayoutEdit').addEventListener('click', () => setLayoutEditMode(true));
+    document.getElementById('btnFinishEdit').addEventListener('click', () => setLayoutEditMode(false));
 
-      baseCamPos.z = Math.max(requiredZForHeight, minZForWidth);
-      baseCamPos.y = 0;
-      camera.position.z = baseCamPos.z;
-
-      // Shift worldGroup vertically to the exact center between topOccupied and bottomOccupied
-      const visibleWorldHeight = 2 * baseCamPos.z * Math.tan(halfFovRad);
-      const pixelOffsetY = (bottomOccupied - topOccupied) * 0.5;
-      worldGroup.position.y = (pixelOffsetY / h) * visibleWorldHeight;
-
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    }
+    document.getElementById('btnScaleSlider').addEventListener('input', (e) => {
+      userConfig.btnScale = Number(e.target.value) || 100;
+      renderTouchPadButtonsJS();
+      saveUserConfig();
+    });
 
     window.addEventListener('resize', handleResize);
 
     window.onload = () => {
+      syncSettingsUI();
       handleResize();
-      // Re-run once layout fonts settle to ensure exact bounding boxes
       setTimeout(handleResize, 120);
       initQueues();
       render2DPreviews();
